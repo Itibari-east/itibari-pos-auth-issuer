@@ -1,0 +1,276 @@
+name: Build, Push To GCP, And Update CI Manifest
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+      - staging
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  APP_DIR: .
+  KUSTOMIZE_IMAGE_NAME: itibari/authorization-service
+
+jobs:
+  build-and-push:
+    name: Build And Push Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      image_uri: ${{ steps.meta.outputs.image_uri }}
+      image_tag: ${{ steps.meta.outputs.image_tag }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Build Jar
+        working-directory: ${{ env.APP_DIR }}
+        run: mvn -B -DskipTests package
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS}}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker For Artifact Registry
+        run: gcloud auth configure-docker europe-west1-docker.pkg.dev
+
+      - name: Build image metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          case "${GITHUB_REF_NAME}" in
+            dev)
+              DEPLOY_ENV="dev"
+              GAR_REPOSITORY="pos-backend"
+              ;;
+            staging)
+              DEPLOY_ENV="staging"
+              GAR_REPOSITORY="pos-backend-stage"
+              ;;
+            main)
+              DEPLOY_ENV="prod"
+              GAR_REPOSITORY="pos-backend-prod"
+              ;;
+            *)
+              echo "Unsupported branch for GAR repository selection: ${GITHUB_REF_NAME}"
+              exit 1
+              ;;
+          esac
+
+          IMAGE_REPO="europe-west1-docker.pkg.dev/itibari-uat-454120/${GAR_REPOSITORY}/authorization-service"
+          EXISTING_TAGS="$(gcloud artifacts docker tags list "${IMAGE_REPO}" --format='value(tag)' 2>/dev/null || true)"
+          LAST_VERSION="$(
+            printf '%s\n' "${EXISTING_TAGS}" \
+              | grep -E "^${DEPLOY_ENV}-[0-9]+$" \
+              || true
+          )"
+          LAST_VERSION="$(
+            printf '%s\n' "${LAST_VERSION}" \
+              | sed -E "s/^${DEPLOY_ENV}-0*([0-9]+)$/\1/" \
+              | sort -n \
+              | tail -1
+          )"
+
+          if [ -z "${LAST_VERSION}" ]; then
+            NEXT_VERSION=1
+          else
+            NEXT_VERSION=$((LAST_VERSION + 1))
+          fi
+
+          printf -v IMAGE_TAG "%s-%04d" "${DEPLOY_ENV}" "${NEXT_VERSION}"
+          IMAGE_URI="${IMAGE_REPO}:${IMAGE_TAG}"
+
+          echo "deploy_env=${DEPLOY_ENV}" >> "$GITHUB_OUTPUT"
+          echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "image_uri=${IMAGE_URI}" >> "$GITHUB_OUTPUT"
+
+      - name: Build Docker image
+        working-directory: ${{ env.APP_DIR }}
+        run: docker build -t "${{ steps.meta.outputs.image_uri }}" .
+
+      - name: Push Docker image
+        run: docker push "${{ steps.meta.outputs.image_uri }}"
+
+  update-ci-repo:
+    name: Update CI Overlay Image Tag
+    runs-on: ubuntu-latest
+    needs: build-and-push
+
+    steps:
+      - name: Clone CI repository
+        env:
+          CI_REPO: 'Itibari-east/itibari-pos-ci'
+          CI_REPO_BRANCH: 'main'
+          CI_REPO_TOKEN: ${{ secrets.CI_REPO_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --branch "$CI_REPO_BRANCH" "https://x-access-token:${CI_REPO_TOKEN}@github.com/${CI_REPO}.git" ci-repo
+
+      - name: Install kustomize
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sSfL https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh | bash
+          sudo mv kustomize /usr/local/bin/kustomize
+          kustomize version
+
+      - name: Select overlay target
+        id: overlay
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${GITHUB_REF_NAME}" in
+            dev)
+              OVERLAY_PATH="overlays/dev/apps/authorization-service"
+              ;;
+            staging)
+              OVERLAY_PATH="overlays/staging/apps/authorization-service"
+              ;;
+            prod)
+              OVERLAY_PATH="overlays/prod/apps/authorization-service"
+              ;;
+            *)
+              echo "Unsupported branch: ${GITHUB_REF_NAME}"
+              exit 1
+              ;;
+          esac
+          echo "overlay_path=${OVERLAY_PATH}" >> "$GITHUB_OUTPUT"
+
+      - name: Update overlay image
+        env:
+          IMAGE_URI: ${{ needs.build-and-push.outputs.image_uri }}
+          OVERLAY_PATH: ${{ steps.overlay.outputs.overlay_path }}
+          IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
+          KUSTOMIZE_IMAGE_NAME: ${{ env.KUSTOMIZE_IMAGE_NAME }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ci-repo
+
+          if [ ! -f "${OVERLAY_PATH}/kustomization.yaml" ]; then
+            echo "Missing file: ${OVERLAY_PATH}/kustomization.yaml"
+            exit 1
+          fi
+
+          KUSTOMIZATION_FILE="${OVERLAY_PATH}/kustomization.yaml"
+          IMAGE_REPO="${IMAGE_URI%:*}"
+          export KUSTOMIZATION_FILE IMAGE_REPO IMAGE_TAG
+
+          python3 <<'PY'
+          import os
+          import pathlib
+
+          path = pathlib.Path(os.environ["KUSTOMIZATION_FILE"])
+          image_repo = os.environ["IMAGE_REPO"]
+          image_tag = os.environ["IMAGE_TAG"]
+          lines = path.read_text(encoding="utf-8").splitlines()
+          output = list(lines)
+
+          images_idx = None
+          item_start = None
+          item_end = None
+
+          for i, line in enumerate(lines):
+            stripped = line.strip()
+
+            if images_idx is None:
+              if stripped == "images:":
+                images_idx = i
+              continue
+
+            if line and not line.startswith((" ", "\t", "-")):
+              break
+
+            if stripped.startswith("- "):
+              if item_start is None:
+                item_start = i
+              elif item_end is None:
+                item_end = i
+                break
+
+          if images_idx is None or item_start is None:
+            raise SystemExit(f"Could not find an image entry in {path}")
+
+          if item_end is None:
+            item_end = len(lines)
+
+          entry_lines = lines[item_start:item_end]
+          base_indent = entry_lines[0][: len(entry_lines[0]) - len(entry_lines[0].lstrip())]
+          field_indent = f"{base_indent}  "
+          has_new_name = False
+          has_new_tag = False
+          updated_entry = []
+
+          for entry_line in entry_lines:
+            stripped = entry_line.strip()
+
+            if stripped.startswith("newName:"):
+              updated_entry.append(f"{field_indent}newName: {image_repo}")
+              has_new_name = True
+              continue
+
+            if stripped.startswith("newTag:"):
+              updated_entry.append(f"{field_indent}newTag: {image_tag}")
+              has_new_tag = True
+              continue
+
+            updated_entry.append(entry_line)
+
+          if not has_new_name:
+            updated_entry.append(f"{field_indent}newName: {image_repo}")
+
+          if not has_new_tag:
+            updated_entry.append(f"{field_indent}newTag: {image_tag}")
+
+          output[item_start:item_end] = updated_entry
+          path.write_text("\n".join(output) + "\n", encoding="utf-8")
+          PY
+
+          pushd "${OVERLAY_PATH}" > /dev/null
+          kustomize build . > /dev/null
+          popd > /dev/null
+
+      - name: Commit and push changes
+        env:
+          CI_REPO_BRANCH: main
+          IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
+          OVERLAY_PATH: ${{ steps.overlay.outputs.overlay_path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ci-repo
+          git config user.name "christopher oigo"
+          git config user.email "oigoc60@gmail.com"
+
+          git add "${OVERLAY_PATH}/kustomization.yaml"
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git commit -m "chore: update ${GITHUB_REF_NAME} authorization-service image to ${IMAGE_TAG}"
+          git push origin "HEAD:${CI_REPO_BRANCH}"
+
