@@ -148,7 +148,7 @@ jobs:
             staging)
               OVERLAY_PATH="overlays/staging/apps/authorization-service"
               ;;
-            prod)
+            main)
               OVERLAY_PATH="overlays/prod/apps/authorization-service"
               ;;
             *)
