@@ -1,0 +1,42 @@
+spring:
+  cloud:
+    discovery:
+      enabled: false
+  autoconfigure:
+    exclude:
+      - org.springframework.cloud.netflix.eureka.EurekaClientAutoConfiguration
+  datasource:
+    url: jdbc:h2:mem:auth;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;INIT=CREATE SCHEMA IF NOT EXISTS pos_core
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+    properties:
+      hibernate:
+        default_schema: pos_core
+  liquibase:
+    enabled: false
+  sql:
+    init:
+      mode: never
+
+eureka:
+  client:
+    enabled: false
+
+security:
+  google:
+    client-id: test-google-client
+  jwt:
+    key-store:
+      path: classpath:keys/keystore.jks
+      password: ITIBARI
+      key-alias: itibari-jwt-key
+      private-key-passphrase: ITIBARI
+
+vodampesa:
+  enabled: false
+  auto-initialize: false

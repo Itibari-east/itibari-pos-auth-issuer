@@ -1,0 +1,83 @@
+spring:
+  application:
+    name: pos-auth-issuer
+  cloud:
+    compatibility-verifier:
+      enabled: false
+  jpa:
+    show-sql: false
+    hibernate:
+      ddl-auto: none
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: Africa/Nairobi
+  datasource:
+    url: jdbc:postgresql://${DATABASE_HOST:localhost}:${DATABASE_PORT:5432}/${DATABASE_NAME:itibari_db}
+    username: ${DATABASE_USER:postgres}
+    password: ${DATABASE_PASSWORD:postgres}
+    hikari:
+      maximumPoolSize: 10
+  liquibase:
+    change-log: classpath:/db/changelog/liquibase.change-log.xml
+    database-change-log-table: pos_auth_issuer_changelog
+    database-change-log-lock-table: pos_auth_issuer_lock
+
+server:
+  port: ${SERVER_PORT:8082}
+  max-http-request-header-size: 10MB
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://${EUREKA_HOST:localhost}:${EUREKA_PORT:8761}/eureka/
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${spring.application.instance_id:${server.port}}
+    lease-renewal-interval-in-seconds: 5
+    lease-expiration-duration-in-seconds: 10
+
+management:
+  server:
+    port: ${MANAGEMENT_PORT:9092}
+  endpoints:
+    web:
+      base-path: /actuator
+      exposure:
+        include: health,prometheus,info
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+
+security:
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:}
+  jwt:
+    key-store:
+      path: classpath:keys/keystore.jks
+      password: ${KEY_STORE_PASSWORD:ITIBARI}
+      key-alias: ${KEY_ALIAS:itibari-jwt-key}
+      private-key-passphrase: ${PRIVATE_KEY_PASSPHRASE:ITIBARI}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+vodampesa:
+  enabled: ${MPESA_ENABLED:false}
+  api-key: ${MPESA_API_KEY:}
+  public-key: ${MPESA_PUBLIC_KEY:}
+  origin: ${MPESA_ORIGIN:}
+  service-provider-code: ${MPESA_SERVICE_PROVIDER_CODE:}
+  production: ${MPESA_PRODUCTION:false}
+  auto-initialize: false
+
+logging:
+  level:
+    org.springframework.security: INFO
+    com.itibari.auth: DEBUG

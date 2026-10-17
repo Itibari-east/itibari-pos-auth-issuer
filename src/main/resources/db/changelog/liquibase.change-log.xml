@@ -1,0 +1,538 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet author="enock" id="pos-auth-issuer-schema">
+        <sql>CREATE SCHEMA IF NOT EXISTS pos_core;</sql>
+    </changeSet>
+
+    <changeSet id="pos-auth-issuer-auth-users" author="enock">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="auth_users" schemaName="pos_core"/>
+            </not>
+        </preConditions>
+        <createTable tableName="auth_users" schemaName="pos_core">
+            <column name="id" autoIncrement="true" type="bigint">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="auth_users_pkey"/>
+            </column>
+            <column name="public_id" type="uuid"/>
+            <column name="deleted" type="boolean" defaultValueBoolean="false"/>
+            <column name="creation_time" type="timestamp"/>
+            <column name="last_modified_date" type="timestamp"/>
+            <column name="username" type="varchar(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="password" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="first_name" type="varchar(255)"/>
+            <column name="last_name" type="varchar(255)"/>
+            <column name="phone_number" type="varchar(255)"/>
+            <column name="email" type="varchar(255)"/>
+            <column name="enabled" type="boolean" defaultValueBoolean="true"/>
+            <column name="active_status" type="boolean" defaultValueBoolean="true"/>
+            <column name="account_non_expired" type="boolean" defaultValueBoolean="true"/>
+            <column name="credentials_non_expired" type="boolean" defaultValueBoolean="true"/>
+            <column name="account_non_locked" type="boolean" defaultValueBoolean="true"/>
+            <column name="admin" type="boolean" defaultValueBoolean="false"/>
+            <column name="force_password_reset" type="boolean" defaultValueBoolean="false"/>
+            <column name="accepted_terms" type="boolean" defaultValueBoolean="false"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="pos-auth-issuer-auth-users-active-status" author="enock">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="auth_users" schemaName="pos_core"/>
+            <not>
+                <columnExists tableName="auth_users" columnName="active_status" schemaName="pos_core"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="auth_users" schemaName="pos_core">
+            <column name="active_status" type="boolean" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="pos-auth-issuer-privilege-groups" author="enock">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="privilege_groups" schemaName="pos_core"/>
+            </not>
+        </preConditions>
+        <createTable tableName="privilege_groups" schemaName="pos_core">
+            <column name="id" autoIncrement="true" type="bigint">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="privilege_groups_pkey"/>
+            </column>
+            <column name="public_id" type="uuid"/>
+            <column name="deleted" type="boolean" defaultValueBoolean="false"/>
+            <column name="creation_time" type="timestamp"/>
+            <column name="last_modified_date" type="timestamp"/>
+            <column name="name" type="varchar(255)"/>
+            <column name="parent_tenant_public_id" type="uuid"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="pos-auth-issuer-privileges" author="enock">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="privileges" schemaName="pos_core"/>
+            </not>
+        </preConditions>
+        <createTable tableName="privileges" schemaName="pos_core">
+            <column name="id" autoIncrement="true" type="bigint">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="privileges_pkey"/>
+            </column>
+            <column name="public_id" type="uuid"/>
+            <column name="deleted" type="boolean" defaultValueBoolean="false"/>
+            <column name="creation_time" type="timestamp"/>
+            <column name="last_modified_date" type="timestamp"/>
+            <column name="name" type="varchar(255)"/>
+            <column name="group_id_fk" type="bigint"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableSchemaName="pos_core"
+                                 baseTableName="privileges"
+                                 baseColumnNames="group_id_fk"
+                                 referencedTableSchemaName="pos_core"
+                                 referencedTableName="privilege_groups"
+                                 referencedColumnNames="id"
+                                 constraintName="fk_privileges_group"/>
+    </changeSet>
+
+    <changeSet id="pos-auth-issuer-roles" author="enock">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="roles" schemaName="pos_core"/>
+            </not>
+        </preConditions>
+        <createTable tableName="roles" schemaName="pos_core">
+            <column name="id" autoIncrement="true" type="bigint">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="roles_pkey"/>
+            </column>
+            <column name="public_id" type="uuid"/>
+            <column name="deleted" type="boolean" defaultValueBoolean="false"/>
+            <column name="creation_time" type="timestamp"/>
+            <column name="last_modified_date" type="timestamp"/>
+            <column name="name" type="varchar(255)"/>
+            <column name="description" type="varchar(255)"/>
+            <column name="parent_tenant_public_id" type="uuid"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="pos-auth-issuer-role-privileges" author="enock">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="role_privileges" schemaName="pos_core"/>
+            </not>
+        </preConditions>
+        <createTable tableName="role_privileges" schemaName="pos_core">
+            <column name="role_id_fk" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="privilege_id_fk" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addPrimaryKey schemaName="pos_core" tableName="role_privileges"
+                       columnNames="role_id_fk, privilege_id_fk"
+                       constraintName="role_privileges_pkey"/>
+        <addForeignKeyConstraint baseTableSchemaName="pos_core"
+                                 baseTableName="role_privileges"
+                                 baseColumnNames="role_id_fk"
+                                 referencedTableSchemaName="pos_core"
+                                 referencedTableName="roles"
+                                 referencedColumnNames="id"
+                                 constraintName="fk_role_privileges_role"/>
+        <addForeignKeyConstraint baseTableSchemaName="pos_core"
+                                 baseTableName="role_privileges"
+                                 baseColumnNames="privilege_id_fk"
+                                 referencedTableSchemaName="pos_core"
+                                 referencedTableName="privileges"
+                                 referencedColumnNames="id"
+                                 constraintName="fk_role_privileges_privilege"/>
+    </changeSet>
+
+    <changeSet id="pos-auth-issuer-role-privileges-groups" author="enock">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="role_privileges_groups" schemaName="pos_core"/>
+            </not>
+        </preConditions>
+        <createTable tableName="role_privileges_groups" schemaName="pos_core">
+            <column name="role_id_fk" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="privilege_group_id_fk" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addPrimaryKey schemaName="pos_core" tableName="role_privileges_groups"
+                       columnNames="role_id_fk, privilege_group_id_fk"
+                       constraintName="role_privileges_groups_pkey"/>
+        <addForeignKeyConstraint baseTableSchemaName="pos_core"
+                                 baseTableName="role_privileges_groups"
+                                 baseColumnNames="role_id_fk"
+                                 referencedTableSchemaName="pos_core"
+                                 referencedTableName="roles"
+                                 referencedColumnNames="id"
+                                 constraintName="fk_role_priv_groups_role"/>
+        <addForeignKeyConstraint baseTableSchemaName="pos_core"
+                                 baseTableName="role_privileges_groups"
+                                 baseColumnNames="privilege_group_id_fk"
+                                 referencedTableSchemaName="pos_core"
+                                 referencedTableName="privilege_groups"
+                                 referencedColumnNames="id"
+                                 constraintName="fk_role_priv_groups_group"/>
+    </changeSet>
+
+    <changeSet id="pos-auth-issuer-auth-users-google-subject" author="enock">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="auth_users" schemaName="pos_core"/>
+            <not>
+                <columnExists tableName="auth_users" columnName="google_subject" schemaName="pos_core"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="auth_users" schemaName="pos_core">
+            <column name="google_subject" type="varchar(255)"/>
+        </addColumn>
+        <addUniqueConstraint schemaName="pos_core"
+                             tableName="auth_users"
+                             columnNames="google_subject"
+                             constraintName="uk_auth_users_google_subject"/>
+    </changeSet>
+
+    <changeSet id="pos-auth-issuer-auth-user-roles" author="enock">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="auth_user_roles" schemaName="pos_core"/>
+            </not>
+        </preConditions>
+        <createTable tableName="auth_user_roles" schemaName="pos_core">
+            <column name="user_id_fk" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="role_id_fk" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addPrimaryKey schemaName="pos_core" tableName="auth_user_roles"
+                       columnNames="user_id_fk, role_id_fk"
+                       constraintName="auth_user_roles_pkey"/>
+        <addForeignKeyConstraint baseTableSchemaName="pos_core"
+                                 baseTableName="auth_user_roles"
+                                 baseColumnNames="user_id_fk"
+                                 referencedTableSchemaName="pos_core"
+                                 referencedTableName="auth_users"
+                                 referencedColumnNames="id"
+                                 constraintName="fk_auth_user_roles_user"/>
+        <addForeignKeyConstraint baseTableSchemaName="pos_core"
+                                 baseTableName="auth_user_roles"
+                                 baseColumnNames="role_id_fk"
+                                 referencedTableSchemaName="pos_core"
+                                 referencedTableName="roles"
+                                 referencedColumnNames="id"
+                                 constraintName="fk_auth_user_roles_role"/>
+    </changeSet>
+
+    <changeSet id="pos-auth-issuer-notification-preferences" author="enock">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="notification_preferences" schemaName="pos_core"/>
+            </not>
+        </preConditions>
+        <createTable tableName="notification_preferences" schemaName="pos_core">
+            <column name="id" autoIncrement="true" type="bigint">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="notification_preferences_pkey"/>
+            </column>
+            <column name="public_id" type="uuid"/>
+            <column name="deleted" type="boolean" defaultValueBoolean="false"/>
+            <column name="creation_time" type="timestamp"/>
+            <column name="last_modified_date" type="timestamp"/>
+            <column name="sms" type="boolean" defaultValueBoolean="false"/>
+            <column name="email" type="boolean" defaultValueBoolean="false"/>
+            <column name="push_notification" type="boolean" defaultValueBoolean="false"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="pos-auth-issuer-institutions" author="enock">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="institutions" schemaName="pos_core"/>
+            </not>
+        </preConditions>
+        <createTable tableName="institutions" schemaName="pos_core">
+            <column name="id" autoIncrement="true" type="bigint">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="institutions_pkey"/>
+            </column>
+            <column name="public_id" type="uuid"/>
+            <column name="deleted" type="boolean" defaultValueBoolean="false"/>
+            <column name="creation_time" type="timestamp"/>
+            <column name="last_modified_date" type="timestamp"/>
+            <column name="name" type="varchar(255)"/>
+            <column name="identity_number" type="varchar(255)"/>
+            <column name="main_tenant" type="boolean" defaultValueBoolean="false"/>
+            <column name="parent_tenant" type="boolean" defaultValueBoolean="false"/>
+            <column name="parent_id" type="bigint"/>
+            <column name="country" type="varchar(255)"/>
+            <column name="tra_pin" type="varchar(255)"/>
+            <column name="time_zone" type="varchar(255)"/>
+            <column name="base_currency" type="varchar(255)"/>
+            <column name="city" type="varchar(255)"/>
+            <column name="active" type="boolean" defaultValueBoolean="true"/>
+            <column name="created_by" type="bigint"/>
+            <column name="subscription_preference_fk_id" type="bigint"/>
+            <column name="marketing_preference_fk_id" type="bigint"/>
+        </createTable>
+        <addUniqueConstraint schemaName="pos_core" tableName="institutions"
+                             columnNames="identity_number"
+                             constraintName="uk_institutions_identity_number"/>
+        <addForeignKeyConstraint baseTableSchemaName="pos_core" baseTableName="institutions"
+                                 baseColumnNames="parent_id"
+                                 referencedTableSchemaName="pos_core" referencedTableName="institutions"
+                                 referencedColumnNames="id" constraintName="fk_institutions_parent"/>
+        <addForeignKeyConstraint baseTableSchemaName="pos_core" baseTableName="institutions"
+                                 baseColumnNames="created_by"
+                                 referencedTableSchemaName="pos_core" referencedTableName="auth_users"
+                                 referencedColumnNames="id" constraintName="fk_institutions_created_by"/>
+        <addForeignKeyConstraint baseTableSchemaName="pos_core" baseTableName="institutions"
+                                 baseColumnNames="subscription_preference_fk_id"
+                                 referencedTableSchemaName="pos_core" referencedTableName="notification_preferences"
+                                 referencedColumnNames="id" constraintName="fk_institutions_sub_pref"/>
+        <addForeignKeyConstraint baseTableSchemaName="pos_core" baseTableName="institutions"
+                                 baseColumnNames="marketing_preference_fk_id"
+                                 referencedTableSchemaName="pos_core" referencedTableName="notification_preferences"
+                                 referencedColumnNames="id" constraintName="fk_institutions_mkt_pref"/>
+    </changeSet>
+
+    <changeSet id="pos-auth-issuer-users-institutions" author="enock">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="users_institutions" schemaName="pos_core"/>
+            </not>
+        </preConditions>
+        <createTable tableName="users_institutions" schemaName="pos_core">
+            <column name="user_id_fk" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="institution_id_fk" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addPrimaryKey schemaName="pos_core" tableName="users_institutions"
+                       columnNames="user_id_fk, institution_id_fk"
+                       constraintName="users_institutions_pkey"/>
+        <addForeignKeyConstraint baseTableSchemaName="pos_core" baseTableName="users_institutions"
+                                 baseColumnNames="user_id_fk"
+                                 referencedTableSchemaName="pos_core" referencedTableName="auth_users"
+                                 referencedColumnNames="id" constraintName="fk_users_institutions_user"/>
+        <addForeignKeyConstraint baseTableSchemaName="pos_core" baseTableName="users_institutions"
+                                 baseColumnNames="institution_id_fk"
+                                 referencedTableSchemaName="pos_core" referencedTableName="institutions"
+                                 referencedColumnNames="id" constraintName="fk_users_institutions_inst"/>
+    </changeSet>
+
+    <changeSet id="pos-auth-issuer-auth-users-institution-fk" author="enock">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="auth_users" schemaName="pos_core"/>
+            <not>
+                <columnExists tableName="auth_users" columnName="institution_fk_id" schemaName="pos_core"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="auth_users" schemaName="pos_core">
+            <column name="institution_fk_id" type="bigint"/>
+        </addColumn>
+        <addForeignKeyConstraint baseTableSchemaName="pos_core" baseTableName="auth_users"
+                                 baseColumnNames="institution_fk_id"
+                                 referencedTableSchemaName="pos_core" referencedTableName="institutions"
+                                 referencedColumnNames="id" constraintName="fk_auth_users_institution"/>
+    </changeSet>
+
+    <changeSet id="pos-auth-issuer-subscriptions" author="enock">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="subscriptions" schemaName="pos_core"/>
+            </not>
+        </preConditions>
+        <createTable tableName="subscriptions" schemaName="pos_core">
+            <column name="id" autoIncrement="true" type="bigint">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="subscriptions_pkey"/>
+            </column>
+            <column name="public_id" type="uuid"/>
+            <column name="deleted" type="boolean" defaultValueBoolean="false"/>
+            <column name="creation_time" type="timestamp"/>
+            <column name="last_modified_date" type="timestamp"/>
+            <column name="name" type="varchar(64)"/>
+            <column name="active" type="boolean" defaultValueBoolean="true"/>
+            <column name="description" type="varchar(255)"/>
+            <column name="price" type="numeric(19,2)" defaultValueNumeric="0"/>
+            <column name="trial_days" type="int" defaultValueNumeric="7">
+                <constraints nullable="false"/>
+            </column>
+            <column name="days" type="int" defaultValueNumeric="30">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="pos-auth-issuer-shop-subscription-details" author="enock">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="shop_subscription_details" schemaName="pos_core"/>
+            </not>
+        </preConditions>
+        <createTable tableName="shop_subscription_details" schemaName="pos_core">
+            <column name="id" autoIncrement="true" type="bigint">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="shop_subscription_details_pkey"/>
+            </column>
+            <column name="public_id" type="uuid"/>
+            <column name="deleted" type="boolean" defaultValueBoolean="false"/>
+            <column name="creation_time" type="timestamp"/>
+            <column name="last_modified_date" type="timestamp"/>
+            <column name="subscription_fk_id" type="bigint"/>
+            <column name="institution_fk_id" type="bigint"/>
+            <column name="subscribed_by_fk_id" type="bigint"/>
+            <column name="subscribed_date" type="timestamp"/>
+            <column name="due_date" type="timestamp"/>
+            <column name="end_date" type="timestamp"/>
+            <column name="days" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="free_trial" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addForeignKeyConstraint baseTableSchemaName="pos_core" baseTableName="shop_subscription_details"
+                                 baseColumnNames="subscription_fk_id"
+                                 referencedTableSchemaName="pos_core" referencedTableName="subscriptions"
+                                 referencedColumnNames="id" constraintName="fk_shop_sub_plan"/>
+        <addForeignKeyConstraint baseTableSchemaName="pos_core" baseTableName="shop_subscription_details"
+                                 baseColumnNames="institution_fk_id"
+                                 referencedTableSchemaName="pos_core" referencedTableName="institutions"
+                                 referencedColumnNames="id" constraintName="fk_shop_sub_institution"/>
+        <addForeignKeyConstraint baseTableSchemaName="pos_core" baseTableName="shop_subscription_details"
+                                 baseColumnNames="subscribed_by_fk_id"
+                                 referencedTableSchemaName="pos_core" referencedTableName="auth_users"
+                                 referencedColumnNames="id" constraintName="fk_shop_sub_user"/>
+    </changeSet>
+
+    <changeSet id="pos-auth-issuer-institutions-shop-subscription-fk" author="enock">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="institutions" schemaName="pos_core"/>
+            <not>
+                <columnExists tableName="institutions" columnName="shop_subscription_detail_fk_id" schemaName="pos_core"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="institutions" schemaName="pos_core">
+            <column name="shop_subscription_detail_fk_id" type="bigint"/>
+        </addColumn>
+        <addForeignKeyConstraint baseTableSchemaName="pos_core" baseTableName="institutions"
+                                 baseColumnNames="shop_subscription_detail_fk_id"
+                                 referencedTableSchemaName="pos_core" referencedTableName="shop_subscription_details"
+                                 referencedColumnNames="id" constraintName="fk_institutions_shop_sub"/>
+    </changeSet>
+
+    <changeSet id="pos-auth-issuer-counties" author="enock">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="counties" schemaName="pos_core"/>
+            </not>
+        </preConditions>
+        <createTable tableName="counties" schemaName="pos_core">
+            <column name="id" autoIncrement="true" type="bigint">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="counties_pkey"/>
+            </column>
+            <column name="public_id" type="uuid"/>
+            <column name="deleted" type="boolean" defaultValueBoolean="false"/>
+            <column name="creation_time" type="timestamp"/>
+            <column name="last_modified_date" type="timestamp"/>
+            <column name="name" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="iso_alpha_three" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="phone_code" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="counties" schemaName="pos_core" indexName="counties_iso_alpha_three_idx">
+            <column name="iso_alpha_three"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="pos-auth-issuer-subscription-payments" author="enock">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists schemaName="pos_core" tableName="subscription_payments"/>
+            </not>
+        </preConditions>
+        <createTable schemaName="pos_core" tableName="subscription_payments">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="public_id" type="uuid"/>
+            <column name="creation_time" type="timestamp"/>
+            <column name="last_modified_date" type="timestamp"/>
+            <column name="deleted" type="boolean" defaultValueBoolean="false"/>
+            <column name="user_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="subscription_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="institution_id" type="bigint"/>
+            <column name="idempotency_key" type="uuid">
+                <constraints nullable="false"/>
+            </column>
+            <column name="conversation_id" type="varchar(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="reference" type="varchar(20)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="phone" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="amount" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="days" type="integer">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="transaction_id" type="varchar(255)">
+                <constraints unique="true"/>
+            </column>
+            <column name="provider_conversation_id" type="varchar(255)"/>
+            <column name="response_code" type="varchar(255)"/>
+            <column name="detail_id" type="bigint">
+                <constraints unique="true"/>
+            </column>
+        </createTable>
+        <addForeignKeyConstraint baseTableSchemaName="pos_core" baseTableName="subscription_payments"
+                                 baseColumnNames="user_id"
+                                 referencedTableSchemaName="pos_core" referencedTableName="auth_users"
+                                 referencedColumnNames="id" constraintName="subscription_payment_user_fk"/>
+        <addForeignKeyConstraint baseTableSchemaName="pos_core" baseTableName="subscription_payments"
+                                 baseColumnNames="subscription_id"
+                                 referencedTableSchemaName="pos_core" referencedTableName="subscriptions"
+                                 referencedColumnNames="id" constraintName="subscription_payment_plan_fk"/>
+        <addForeignKeyConstraint baseTableSchemaName="pos_core" baseTableName="subscription_payments"
+                                 baseColumnNames="institution_id"
+                                 referencedTableSchemaName="pos_core" referencedTableName="institutions"
+                                 referencedColumnNames="id" constraintName="subscription_payment_shop_fk"/>
+        <addForeignKeyConstraint baseTableSchemaName="pos_core" baseTableName="subscription_payments"
+                                 baseColumnNames="detail_id"
+                                 referencedTableSchemaName="pos_core" referencedTableName="shop_subscription_details"
+                                 referencedColumnNames="id" constraintName="subscription_payment_detail_fk"/>
+        <addUniqueConstraint schemaName="pos_core" tableName="subscription_payments"
+                             columnNames="user_id,idempotency_key"
+                             constraintName="subscription_payment_idempotency_key"/>
+    </changeSet>
+</databaseChangeLog>
