@@ -12,7 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class MainTenantInitializer implements ApplicationRunner {
+public class MainTenantInitializer implements ApplicationRunner { // next use commandLineRunner
 
     private final InstitutionRepository institutionRepository;
 

@@ -135,6 +135,8 @@ public class UserRestController {
         return PageResponse.from(authUserService.getUsers(searchParam, pageable));
     }
 
+    @GetMapping({"/me", "/currentUser"})
+    @Operation(summary = "Current authenticated user")
     @GetMapping("/me")
     @Operation(summary = "Current authenticated user", responses = {
             @ApiResponse(responseCode = "200", description = "OK", content = @Content(
