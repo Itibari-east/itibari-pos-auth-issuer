@@ -9,6 +9,7 @@ import com.itibari.auth.model.Role;
 import com.itibari.auth.model.request.AuthUserRequest;
 import com.itibari.auth.model.request.CreateUserDTO;
 import com.itibari.auth.model.request.ShopAllocationDTO;
+import com.itibari.auth.model.request.TenantUserRequest;
 import com.itibari.auth.model.request.UserRoleDto;
 import com.itibari.auth.model.response.AuthUserResponse;
 import com.itibari.auth.model.response.RoleResponse;
@@ -16,8 +17,13 @@ import com.itibari.auth.repository.AuthUserRepository;
 import com.itibari.auth.repository.InstitutionRepository;
 import com.itibari.auth.repository.RoleRepository;
 import com.itibari.auth.service.AuthUserService;
+import com.itibari.auth.service.NotificationClient;
+import com.itibari.auth.service.ResetTokenService;
+import com.itibari.auth.service.components.email.EmailBodyCrafter;
+import com.itibari.auth.util.date.FormatDate;
 import com.itibari.auth.util.phone.FormatPhone;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -25,7 +31,9 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.util.UriComponentsBuilder;
 
+import java.security.SecureRandom;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -33,10 +41,21 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AuthUserServiceImpl implements AuthUserService {
 
+    private static final int TEMPORARY_PASSWORD_LENGTH = 16;
+    private static final String TEMPORARY_PASSWORD_CHARACTERS =
+            "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private static final long PASSWORD_SETUP_LINK_EXPIRY_HOURS = 48;
+
     private final AuthUserRepository authUserRepository;
     private final RoleRepository roleRepository;
     private final InstitutionRepository institutionRepository;
     private final PasswordEncoder passwordEncoder;
+    private final ResetTokenService resetTokenService;
+    private final NotificationClient notificationClient;
+
+    @Value("${app.password-setup.url:https://pos-dev.itibari.io/user/set-password}")
+    private String passwordSetupUrl;
 
     @Override
     @Transactional
@@ -72,6 +91,109 @@ public class AuthUserServiceImpl implements AuthUserService {
                 .build();
 
         return authUserRepository.save(user);
+    }
+
+    @Override
+    @Transactional
+    public AuthUser createParentTenantUser(UUID userPublicId, UUID parentTenantId, CreateUserDTO createUserDTO) {
+        Institution parentTenant = institutionRepository.findByPublicIdAndDeletedIsFalse(parentTenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Parent tenant"));
+        if (!parentTenant.isParentTenant()) {
+            throw new ResourceNotFoundException("Parent tenant");
+        }
+        if (!authUserRepository.belongsToInstitution(userPublicId, parentTenantId)) {
+            throw new AccessDeniedException("You do not belong to this parent tenant");
+        }
+
+        AuthUser user = createUser(createUserDTO);
+        user.setInstitution(parentTenant);
+        user.getInstitutions().add(parentTenant);
+        return authUserRepository.save(user);
+    }
+
+    @Override
+    @Transactional
+    public AuthUser createTenantUser(UUID requestingUserId, TenantUserRequest request) {
+        Institution parentTenant = getParentTenantForUser(requestingUserId);
+        String email = request.email().trim().toLowerCase(Locale.ROOT);
+        String phone = FormatPhone.myPhoneNumber(request.phone());
+
+        if (authUserRepository.findByEmailIgnoreCaseAndDeletedFalse(email).isPresent()) {
+            throw new BadRequestException("Email already taken");
+        }
+        if (authUserRepository.findByPhoneNumberAndDeletedFalse(phone).isPresent()) {
+            throw new BadRequestException("Phone number already taken");
+        }
+        if (authUserRepository.findByUsernameIgnoreCaseAndDeletedFalse(email).isPresent()) {
+            throw new BadRequestException("Username already taken");
+        }
+
+        Set<Role> roles = getTenantRoles(request.role(), parentTenant);
+        Set<Institution> branches = getTenantBranches(request.branch(), parentTenant);
+        String setupToken = resetTokenService.generateUniqueLinkToken();
+
+        AuthUser user = AuthUser.builder()
+                .username(email)
+                .firstName(request.firstName().trim())
+                .lastName(request.lastName().trim())
+                .email(email)
+                .phoneNumber(phone)
+                .password(passwordEncoder.encode(temporaryPassword()))
+                .forcePasswordReset(true)
+                .resetPasswordTokenHash(passwordEncoder.encode(setupToken))
+                .resetPasswordTokenLookupHash(resetTokenService.lookupHash(setupToken))
+                .resetPasswordTokenExpiresAt(FormatDate.currentNairobiDateTime()
+                        .plusHours(PASSWORD_SETUP_LINK_EXPIRY_HOURS))
+                .enabled(true)
+                .activeStatus(true)
+                .accountNonExpired(true)
+                .credentialsNonExpired(true)
+                .accountNonLocked(true)
+                .build();
+        user.setInstitution(branches.stream().findFirst().orElse(parentTenant));
+        user.getInstitutions().add(parentTenant);
+        user.getInstitutions().addAll(branches);
+        user.getRoles().addAll(roles);
+
+        AuthUser savedUser = authUserRepository.save(user);
+        String setupLink = UriComponentsBuilder.fromUriString(passwordSetupUrl)
+                .queryParam("token", setupToken)
+                .build()
+                .toUriString();
+        notificationClient.sendEmail(
+                savedUser.getEmail(),
+                savedUser.fullName(),
+                "Set up your password",
+                EmailBodyCrafter.passwordSetupLinkEmailBody(
+                        savedUser.fullName(), setupLink, PASSWORD_SETUP_LINK_EXPIRY_HOURS),
+                parentTenant.getPublicId(),
+                savedUser.getPublicId().toString());
+        return savedUser;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<AuthUserResponse> getTenantUsers(UUID requestingUserId, String searchParam, Pageable pageable) {
+        return authUserRepository.findTenantUsers(getParentTenantForUser(requestingUserId), searchParam, pageable);
+    }
+
+    @Override
+    @Transactional
+    public AuthUserResponse toggleTenantUserStatus(UUID requestingUserId, UUID userId) {
+        AuthUser user = getTenantUser(userId, getParentTenantForUser(requestingUserId));
+        user.setActiveStatus(!user.isActiveStatus());
+        user.setEnabled(user.isActiveStatus());
+        return toResponse(authUserRepository.save(user));
+    }
+
+    @Override
+    @Transactional
+    public void deleteTenantUser(UUID requestingUserId, UUID userId) {
+        AuthUser user = getTenantUser(userId, getParentTenantForUser(requestingUserId));
+        user.setActiveStatus(false);
+        user.setEnabled(false);
+        user.setDeleted(true);
+        authUserRepository.save(user);
     }
 
     @Override
@@ -260,6 +382,44 @@ public class AuthUserServiceImpl implements AuthUserService {
                 .filter(shop -> !shop.isDeleted() && shop.isParentTenant())
                 .findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("Parent shop"));
+    }
+
+    private AuthUser getTenantUser(UUID userId, Institution parentTenant) {
+        AuthUser user = requireUser(userId);
+        if (!user.getInstitutions().contains(parentTenant)) {
+            throw new ResourceNotFoundException("User");
+        }
+        return user;
+    }
+
+    private Set<Role> getTenantRoles(List<UUID> rolePublicIds, Institution parentTenant) {
+        return rolePublicIds.stream()
+                .map(roleId -> roleRepository.findByPublicIdAndDeletedIsFalse(roleId)
+                        .filter(role -> parentTenant.getPublicId().equals(role.getParentTenantPublicId()))
+                        .orElseThrow(() -> new ResourceNotFoundException("Role")))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    private Set<Institution> getTenantBranches(List<UUID> branchPublicIds, Institution parentTenant) {
+        return branchPublicIds.stream()
+                .map(branchId -> institutionRepository.findByPublicIdAndDeletedIsFalse(branchId)
+                        .filter(branch -> isTenantBranch(branch, parentTenant))
+                        .orElseThrow(() -> new ResourceNotFoundException("Shop")))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    private boolean isTenantBranch(Institution branch, Institution parentTenant) {
+        return parentTenant.equals(branch)
+                || (branch.getParent() != null && parentTenant.equals(branch.getParent()));
+    }
+
+    private String temporaryPassword() {
+        StringBuilder password = new StringBuilder(TEMPORARY_PASSWORD_LENGTH);
+        for (int index = 0; index < TEMPORARY_PASSWORD_LENGTH; index++) {
+            password.append(TEMPORARY_PASSWORD_CHARACTERS.charAt(
+                    SECURE_RANDOM.nextInt(TEMPORARY_PASSWORD_CHARACTERS.length())));
+        }
+        return password.toString();
     }
 
     private AuthUser requireUser(UUID publicId) {

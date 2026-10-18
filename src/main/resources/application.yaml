@@ -69,6 +69,10 @@ springdoc:
     path: /swagger-ui.html
 
 
+app:
+  password-setup:
+    url: ${PASSWORD_SETUP_URL:https://pos-dev.itibari.io/user/set-password}
+
 logging:
   level:
     org.springframework.security: INFO

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -77,6 +78,17 @@ public class AuthUser extends BaseEntity {
     @Column(name = "accepted_terms")
     @Builder.Default
     private boolean acceptedTerms = false;
+
+    @JsonIgnore
+    @Column(name = "reset_password_token_hash")
+    private String resetPasswordTokenHash;
+
+    @JsonIgnore
+    @Column(name = "reset_password_token_lookup_hash", length = 64, unique = true)
+    private String resetPasswordTokenLookupHash;
+
+    @Column(name = "reset_password_token_expires_at")
+    private LocalDateTime resetPasswordTokenExpiresAt;
 
     @JsonIgnore
     @ManyToMany(fetch = FetchType.EAGER)
