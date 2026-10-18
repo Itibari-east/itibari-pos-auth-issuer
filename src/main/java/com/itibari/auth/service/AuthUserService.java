@@ -4,6 +4,7 @@ import com.itibari.auth.model.AuthUser;
 import com.itibari.auth.model.request.AuthUserRequest;
 import com.itibari.auth.model.request.CreateUserDTO;
 import com.itibari.auth.model.request.ShopAllocationDTO;
+import com.itibari.auth.model.request.TenantUserRequest;
 import com.itibari.auth.model.request.UserRoleDto;
 import com.itibari.auth.model.response.AuthUserResponse;
 import com.itibari.auth.model.response.RoleResponse;
@@ -16,6 +17,16 @@ import java.util.UUID;
 
 public interface AuthUserService {
     AuthUser createUser(@Valid CreateUserDTO createUserDTO);
+
+    AuthUser createParentTenantUser(UUID userPublicId, UUID parentTenantId, @Valid CreateUserDTO createUserDTO);
+
+    AuthUser createTenantUser(UUID requestingUserId, @Valid TenantUserRequest request);
+
+    Page<AuthUserResponse> getTenantUsers(UUID requestingUserId, String searchParam, Pageable pageable);
+
+    AuthUserResponse toggleTenantUserStatus(UUID requestingUserId, UUID userId);
+
+    void deleteTenantUser(UUID requestingUserId, UUID userId);
 
     AuthUserResponse getUserByPublicId(UUID publicId);
 

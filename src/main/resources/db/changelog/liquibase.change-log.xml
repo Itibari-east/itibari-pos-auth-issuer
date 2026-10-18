@@ -535,4 +535,32 @@
                              columnNames="user_id,idempotency_key"
                              constraintName="subscription_payment_idempotency_key"/>
     </changeSet>
+
+    <changeSet id="pos-auth-issuer-auth-users-reset-password-token" author="enock">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="auth_users" schemaName="pos_core"/>
+            <not>
+                <columnExists tableName="auth_users" columnName="reset_password_token_hash" schemaName="pos_core"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="auth_users" schemaName="pos_core">
+            <column name="reset_password_token_hash" type="varchar(255)"/>
+            <column name="reset_password_token_expires_at" type="timestamp"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="pos-auth-issuer-auth-users-reset-password-lookup-hash" author="enock">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="auth_users" schemaName="pos_core"/>
+            <not>
+                <columnExists tableName="auth_users" columnName="reset_password_token_lookup_hash" schemaName="pos_core"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="auth_users" schemaName="pos_core">
+            <column name="reset_password_token_lookup_hash" type="varchar(64)"/>
+        </addColumn>
+        <addUniqueConstraint schemaName="pos_core" tableName="auth_users"
+                             columnNames="reset_password_token_lookup_hash"
+                             constraintName="auth_users_reset_token_lookup_hash_key"/>
+    </changeSet>
 </databaseChangeLog>
