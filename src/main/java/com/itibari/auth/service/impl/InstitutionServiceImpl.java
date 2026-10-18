@@ -254,10 +254,10 @@ public class InstitutionServiceImpl implements InstitutionService {
     @Override
     @Transactional
     public void handleSubscription(PaymentDetail event) {
-        if (!Boolean.TRUE.equals(event.freeTrial())) {
-            throw new BadRequestException(
-                    "Paid subscriptions are handled by the finance service; use free trial here");
-        }
+//        if (!Boolean.TRUE.equals(event.freeTrial())) {
+//            throw new BadRequestException(
+//                    "Paid subscriptions are handled by the finance service; use free trial here");
+//        }
         subscriptionAccessService.startTrial(event.referenceId(), event.subscriptionId());
     }
 
