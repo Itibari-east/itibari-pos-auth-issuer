@@ -68,10 +68,18 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
 
+vodampesa:
+  enabled: ${MPESA_ENABLED:false}
+  api-key: ${MPESA_API_KEY:LATER}
+  public-key: ${MPESA_PUBLIC_KEY:LATER}
+  origin: ${MPESA_ORIGIN:LATER}
+  service-provider-code: ${MPESA_SERVICE_PROVIDER_CODE:LATER}
+  production: ${MPESA_PRODUCTION:false}
+  auto-initialize: false
 
 app:
   password-setup:
-    url: ${PASSWORD_SETUP_URL:https://pos-dev.itibari.io/user/set-password}
+    url: ${PASSWORD_SETUP_URL:https://micro-pos-dev.itibari.io/user/set-password}
 
 logging:
   level:
