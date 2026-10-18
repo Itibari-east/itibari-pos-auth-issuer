@@ -77,6 +77,10 @@ vodampesa:
   production: ${MPESA_PRODUCTION:false}
   auto-initialize: false
 
+app:
+  password-setup:
+    url: ${PASSWORD_SETUP_URL:https://pos-dev.itibari.io/user/set-password}
+
 logging:
   level:
     org.springframework.security: INFO

@@ -1,6 +1,7 @@
 package com.itibari.auth.repository;
 
 import com.itibari.auth.model.AuthUser;
+import com.itibari.auth.model.Institution;
 import com.itibari.auth.model.response.AuthUserResponse;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
@@ -28,6 +29,8 @@ public interface AuthUserRepository extends JpaRepository<AuthUser, Long> {
     Optional<AuthUser> findByPhoneNumberAndDeletedFalse(String phoneNumber);
 
     Optional<AuthUser> findByGoogleSubjectAndDeletedFalse(String googleSubject);
+
+    boolean existsByResetPasswordTokenLookupHash(String resetPasswordTokenLookupHash);
 
     java.util.List<AuthUser> findByInstitutions_PublicIdAndDeletedFalse(UUID institutionPublicId);
 
@@ -67,4 +70,33 @@ public interface AuthUserRepository extends JpaRepository<AuthUser, Long> {
             order by u.creationTime desc
             """)
     Page<AuthUserResponse> listUsers(@Param("searchParam") String searchParam, Pageable pageable);
+
+    @Query(value = """
+            select new com.itibari.auth.model.response.AuthUserResponse(
+                user.publicId, user.firstName, user.lastName, user.phoneNumber, user.email, user.activeStatus)
+            from AuthUser user
+            join user.institutions institution
+            where institution = :parentTenant
+              and user.deleted = false
+              and (:searchParam is null or :searchParam = '' or
+                   lower(user.firstName) like lower(concat('%', :searchParam, '%')) or
+                   lower(user.lastName) like lower(concat('%', :searchParam, '%')) or
+                   lower(user.phoneNumber) like lower(concat('%', :searchParam, '%')) or
+                   lower(user.email) like lower(concat('%', :searchParam, '%')))
+            """,
+            countQuery = """
+                    select count(user)
+                    from AuthUser user
+                    join user.institutions institution
+                    where institution = :parentTenant
+                      and user.deleted = false
+                      and (:searchParam is null or :searchParam = '' or
+                           lower(user.firstName) like lower(concat('%', :searchParam, '%')) or
+                           lower(user.lastName) like lower(concat('%', :searchParam, '%')) or
+                           lower(user.phoneNumber) like lower(concat('%', :searchParam, '%')) or
+                           lower(user.email) like lower(concat('%', :searchParam, '%')))
+                    """)
+    Page<AuthUserResponse> findTenantUsers(@Param("parentTenant") Institution parentTenant,
+                                           @Param("searchParam") String searchParam,
+                                           Pageable pageable);
 }
