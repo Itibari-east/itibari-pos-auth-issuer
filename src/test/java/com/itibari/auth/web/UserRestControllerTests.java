@@ -9,6 +9,8 @@ import com.itibari.auth.model.request.CreateUserDTO;
 import com.itibari.auth.model.request.UserRoleDto;
 import io.restassured.http.ContentType;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.List;
 import java.util.UUID;
@@ -67,21 +69,28 @@ class UserRestControllerTests extends AuthIssuerApplicationTests {
                 .body("accessToken", not(blankOrNullString()));
     }
 
-    @Test
-    void currentUserRequiresAuthAndReturnsProfile() {
+    @ParameterizedTest
+    @ValueSource(strings = {"/users/me", "/users/currentUser"})
+    void currentUserRequiresAuthAndReturnsProfile(String path) {
         String email = uniqueEmail("me");
         saveUser(email, "password123");
         String token = login(email, "password123");
 
         given()
                 .auth().oauth2(token)
-                .get("/users/me")
+                .get(path)
                 .then().log().all()
                 .statusCode(200)
                 .body("email", equalToIgnoringCase(email))
                 .body("firstName", equalTo("Test"))
                 .body("lastName", equalTo("User"))
                 .body("activeStatus", equalTo(true));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"/users/me", "/users/currentUser"})
+    void currentUserRejectsUnauthenticatedRequests(String path) {
+        given().get(path).then().statusCode(401);
     }
 
     @Test

@@ -46,7 +46,7 @@ public class UserRestController {
         return PageResponse.from(authUserService.getUsers(searchParam, pageable));
     }
 
-    @GetMapping("/me")
+    @GetMapping({"/me", "/currentUser"})
     @Operation(summary = "Current authenticated user")
     public AuthUserResponse me(@AuthenticationPrincipal Jwt jwt) {
         return authUserService.getSessionUser(userPublicId(jwt));
