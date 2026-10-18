@@ -2,16 +2,8 @@ package com.itibari.auth.web;
 
 import com.itibari.auth.doc.Examples;
 import com.itibari.auth.model.AuthUser;
-import com.itibari.auth.model.request.AuthUserRequest;
-import com.itibari.auth.model.request.CreateUserDTO;
-import com.itibari.auth.model.request.ShopAllocationDTO;
-import com.itibari.auth.model.request.TenantUserRequest;
-import com.itibari.auth.model.request.UserRoleDto;
-import com.itibari.auth.model.response.AuthUserResponse;
-import com.itibari.auth.model.response.CustomResponse;
-import com.itibari.auth.model.response.CustomUserResponse;
-import com.itibari.auth.model.response.PageResponse;
-import com.itibari.auth.model.response.RoleResponse;
+import com.itibari.auth.model.request.*;
+import com.itibari.auth.model.response.*;
 import com.itibari.auth.service.AuthUserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -135,7 +127,7 @@ public class UserRestController {
         return PageResponse.from(authUserService.getUsers(searchParam, pageable));
     }
 
-    @GetMapping({"/me", "/currentUser"})
+    @GetMapping({"/me", "/currentUser"})   // UI calls currentUser
     @Operation(summary = "Current authenticated user")
     public AuthUserResponse me(@AuthenticationPrincipal Jwt jwt) {
         return authUserService.getSessionUser(userPublicId(jwt));
