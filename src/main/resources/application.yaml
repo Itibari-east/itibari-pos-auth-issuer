@@ -25,6 +25,7 @@ spring:
     database-change-log-lock-table: pos_auth_issuer_lock
 
 server:
+  forward-headers-strategy: framework
   port: ${SERVER_PORT:8082}
   max-http-request-header-size: 10MB
 
