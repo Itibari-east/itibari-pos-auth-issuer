@@ -102,6 +102,36 @@ class RoleRestControllerTests extends AuthIssuerApplicationTests {
     }
 
     @Test
+    void createRoleWithoutTenantIdIsListedForLoggedInShop() {
+        String email = uniqueEmail("role-ui-create");
+        saveUser(email, "password123");
+        String token = login(email, "password123");
+        createParentShop(token, "Tenant Shop");
+
+        String publicId = given()
+                .auth().oauth2(token)
+                .contentType(ContentType.JSON)
+                .body(CreateRoleDTO.builder()
+                        .name("UI_CASHIER")
+                        .description("Created like the UI, without parentTenantPublicId")
+                        .build())
+                .post("/roles")
+                .then().log().all()
+                .statusCode(200)
+                .body("name", equalTo("UI_CASHIER"))
+                .extract()
+                .path("publicId");
+
+        given()
+                .auth().oauth2(token)
+                .get("/roles/tenant")
+                .then().log().all()
+                .statusCode(200)
+                .body("content.name", hasItem("UI_CASHIER"))
+                .body("content.publicId", hasItem(publicId));
+    }
+
+    @Test
     void listTenantRolesRequiresParentShop() {
         String email = uniqueEmail("role-no-shop");
         saveUser(email, "password123");

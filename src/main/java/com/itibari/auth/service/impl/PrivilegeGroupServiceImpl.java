@@ -30,10 +30,13 @@ public class PrivilegeGroupServiceImpl implements PrivilegeGroupService {
 
     @Override
     @Transactional
-    public PrivilegeGroup createPrivilegeGroup(PrivilegeGroupDto privilegeGroupDto) {
+    public PrivilegeGroup createPrivilegeGroup(PrivilegeGroupDto privilegeGroupDto, UUID loggedInUserPublicId) {
+        UUID tenantId = privilegeGroupDto.parentTenantPublicId() != null
+                ? privilegeGroupDto.parentTenantPublicId()
+                : authUserService.getParentTenantPublicId(loggedInUserPublicId);
         PrivilegeGroup group = PrivilegeGroup.builder()
                 .name(privilegeGroupDto.name().trim())
-                .parentTenantPublicId(privilegeGroupDto.parentTenantPublicId())
+                .parentTenantPublicId(tenantId)
                 .build();
         return privilegeGroupRepository.save(group);
     }

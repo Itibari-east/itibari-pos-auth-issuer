@@ -31,8 +31,9 @@ public class PrivilegeGroupRestController {
     @PostMapping
     @Operation(summary = "Create privilege group")
     public ResponseEntity<CustomResponse> createPrivilegeGroup(
-            @Valid @RequestBody PrivilegeGroupDto privilegeGroupDto) {
-        PrivilegeGroup group = privilegeGroupService.createPrivilegeGroup(privilegeGroupDto);
+            @Valid @RequestBody PrivilegeGroupDto privilegeGroupDto,
+            @AuthenticationPrincipal Jwt jwt) {
+        PrivilegeGroup group = privilegeGroupService.createPrivilegeGroup(privilegeGroupDto, userPublicId(jwt));
         return ResponseEntity.ok(new CustomResponse("successfully created privilege group", group.getName()));
     }
 
