@@ -30,6 +30,8 @@ public interface AuthUserRepository extends JpaRepository<AuthUser, Long> {
 
     Optional<AuthUser> findByGoogleSubjectAndDeletedFalse(String googleSubject);
 
+    Optional<AuthUser> findByResetPasswordTokenLookupHashAndDeletedFalse(String resetPasswordTokenLookupHash);
+
     boolean existsByResetPasswordTokenLookupHash(String resetPasswordTokenLookupHash);
 
     java.util.List<AuthUser> findByInstitutions_PublicIdAndDeletedFalse(UUID institutionPublicId);

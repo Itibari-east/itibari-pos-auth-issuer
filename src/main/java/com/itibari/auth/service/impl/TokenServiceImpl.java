@@ -1,6 +1,7 @@
 package com.itibari.auth.service.impl;
 
 import com.itibari.auth.dataTypes.LoginChannel;
+import com.itibari.auth.exception.ForcePasswordResetRequiredException;
 import com.itibari.auth.model.AuthUser;
 import com.itibari.auth.model.Institution;
 import com.itibari.auth.model.TokenResponse;
@@ -138,6 +139,9 @@ public class TokenServiceImpl implements TokenService {
         }
         if (!user.isCredentialsNonExpired()) {
             throw new DisabledException("User credentials have expired");
+        }
+        if (user.isForcePasswordReset()) {
+            throw new ForcePasswordResetRequiredException();
         }
     }
 }
