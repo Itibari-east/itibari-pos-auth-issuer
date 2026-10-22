@@ -36,11 +36,15 @@ public class RoleRestController {
     }
 
     @GetMapping
-    @Operation(summary = "List roles")
+    @Operation(summary = "List roles for the authenticated user's parent tenant")
     public PageResponse<RoleResponse> getAllRoles(
             @RequestParam(name = "searchParam", required = false) String searchParam,
             @RequestParam(name = "parentTenantPublicId", required = false) UUID parentTenantPublicId,
-            @PageableDefault(size = 20) Pageable pageable) {
+            @PageableDefault(size = 20) Pageable pageable,
+            @AuthenticationPrincipal Jwt jwt) {
+        if (parentTenantPublicId == null) {
+            return PageResponse.from(roleService.getTenantRoles(userPublicId(jwt), searchParam, pageable));
+        }
         return PageResponse.from(roleService.getAllRoles(searchParam, parentTenantPublicId, pageable));
     }
 

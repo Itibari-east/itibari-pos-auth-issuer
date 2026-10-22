@@ -38,13 +38,16 @@ class RoleRestControllerTests extends AuthIssuerApplicationTests {
     }
 
     @Test
-    void listRolesReturnsCreatedRoles() {
+    void listRolesReturnsParentTenantRoles() {
         String email = uniqueEmail("role-list");
         saveUser(email, "password123");
         String token = login(email, "password123");
+        UUID tenantId = UUID.fromString(createParentShop(token, "Tenant Shop"));
 
-        Role roleA = saveRole("ROLE_A");
-        Role roleB = saveRole("ROLE_B");
+        Role roleA = saveRole("ROLE_A", tenantId);
+        Role roleB = saveRole("ROLE_B", tenantId);
+        saveRole("OTHER_TENANT_ROLE", UUID.randomUUID());
+        saveRole("GLOBAL_ROLE");
 
         given()
                 .auth().oauth2(token)
@@ -54,6 +57,7 @@ class RoleRestControllerTests extends AuthIssuerApplicationTests {
                 .then().log().all()
                 .statusCode(200)
                 .body("content.name", hasItems("ROLE_A", "ROLE_B"))
+                .body("content.name", not(hasItems("OTHER_TENANT_ROLE", "GLOBAL_ROLE")))
                 .body("content.publicId", hasItems(roleA.getPublicId().toString(), roleB.getPublicId().toString()));
     }
 
@@ -124,7 +128,7 @@ class RoleRestControllerTests extends AuthIssuerApplicationTests {
 
         given()
                 .auth().oauth2(token)
-                .get("/roles/tenant")
+                .get("/roles")
                 .then().log().all()
                 .statusCode(200)
                 .body("content.name", hasItem("UI_CASHIER"))
@@ -136,6 +140,12 @@ class RoleRestControllerTests extends AuthIssuerApplicationTests {
         String email = uniqueEmail("role-no-shop");
         saveUser(email, "password123");
         String token = login(email, "password123");
+
+        given()
+                .auth().oauth2(token)
+                .get("/roles")
+                .then().log().all()
+                .statusCode(404);
 
         given()
                 .auth().oauth2(token)
