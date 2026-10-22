@@ -113,7 +113,7 @@ class PrivilegeRestControllerTests extends AuthIssuerApplicationTests {
 
         given()
                 .auth().oauth2(token)
-                .get("/privilege-groups/tenant")
+                .get("/privilege-groups")
                 .then().log().all()
                 .statusCode(200)
                 .body("content.name", hasItem("UI Inventory"));
@@ -146,6 +146,12 @@ class PrivilegeRestControllerTests extends AuthIssuerApplicationTests {
         String email = uniqueEmail("priv-group-no-shop");
         saveUser(email, "password123");
         String token = login(email, "password123");
+
+        given()
+                .auth().oauth2(token)
+                .get("/privilege-groups")
+                .then().log().all()
+                .statusCode(404);
 
         given()
                 .auth().oauth2(token)
