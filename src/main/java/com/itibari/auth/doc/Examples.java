@@ -52,4 +52,13 @@ public final class Examples {
 
     public static final String USER_PRIVILEGES_OK_RESPONSE =
             "{\"totalElements\":1,\"pageSize\":1,\"totalPages\":1,\"last\":true,\"first\":true,\"pageNumber\":0,\"content\":[{\"ROLE_ADMIN\":{\"publicId\":\"47a111df-dd04-4311-a144-9a572b4bdd59\",\"MODULE_VIEWS\":[{\"publicId\":\"36237c22-7e51-4fa7-a7e4-f6304835765a\",\"VIEW_USERS\":true}]}}]}";
+
+    public static final String FORGOT_PASSWORD_RESPONSE =
+            "{\"resetToken\":\"123456\",\"expiresAt\":\"5\"}";
+
+    public static final String RESET_PASSWORD_REQUEST =
+            "{\"resetToken\":\"123456\",\"newPassword\":\"newPassword\",\"confirmPassword\":\"newPassword\"}";
+
+    public static final String RESET_PASSWORD_RESPONSE =
+            "{\"message\":\"You have successfully reset your password\"}";
 }

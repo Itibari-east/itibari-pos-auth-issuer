@@ -24,6 +24,11 @@ public class ResetTokenServiceImpl implements ResetTokenService {
     private final AuthUserRepository authUserRepository;
 
     @Override
+    public String generateUniqueToken() {
+        return generateUnique(() -> String.format("%06d", SECURE_RANDOM.nextInt(1_000_000)));
+    }
+
+    @Override
     public String generateUniqueLinkToken() {
         return generateUnique(() -> {
             byte[] bytes = new byte[LINK_TOKEN_BYTES];
