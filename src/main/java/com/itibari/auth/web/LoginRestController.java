@@ -99,4 +99,5 @@ public class LoginRestController {
         resetService.resetPassword(request);
         return ResponseEntity.ok(new MessageResponse("You have successfully reset your password"));
     }
+
 }
