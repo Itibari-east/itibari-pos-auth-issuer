@@ -14,6 +14,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -41,6 +43,15 @@ public class RoleRestController {
         return PageResponse.from(roleService.getAllRoles(searchParam, parentTenantPublicId, pageable));
     }
 
+    @GetMapping("/tenant")
+    @Operation(summary = "List roles for the authenticated user's parent tenant")
+    public PageResponse<RoleResponse> getTenantRoles(
+            @RequestParam(name = "searchParam", required = false) String searchParam,
+            @PageableDefault(size = 20) Pageable pageable,
+            @AuthenticationPrincipal Jwt jwt) {
+        return PageResponse.from(roleService.getTenantRoles(userPublicId(jwt), searchParam, pageable));
+    }
+
     @PatchMapping("/assignPrivilegeToRole/{rolePublicId}")
     @Operation(summary = "Assign privileges to role")
     public ResponseEntity<CustomResponse> assignPrivilegeToRole(
@@ -57,5 +68,9 @@ public class RoleRestController {
             @Valid @RequestBody RolePrivilegeGroupDto request) {
         String groups = roleService.assignPrivilegeGroupsToRole(rolePublicId, request);
         return ResponseEntity.ok(new CustomResponse("successfully added privilege groups", groups));
+    }
+
+    private UUID userPublicId(Jwt jwt) {
+        return UUID.fromString(jwt.getClaimAsString("public_id"));
     }
 }

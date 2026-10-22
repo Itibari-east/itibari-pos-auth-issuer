@@ -376,6 +376,12 @@ public class AuthUserServiceImpl implements AuthUserService {
         return authUserRepository.save(user);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public UUID getParentTenantPublicId(UUID userPublicId) {
+        return getParentTenantForUser(userPublicId).getPublicId();
+    }
+
     private Institution getParentTenantForUser(UUID userPublicId) {
         AuthUser user = requireUser(userPublicId);
         return user.getInstitutions().stream()

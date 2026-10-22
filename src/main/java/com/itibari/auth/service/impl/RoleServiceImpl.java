@@ -11,6 +11,7 @@ import com.itibari.auth.model.response.RoleResponse;
 import com.itibari.auth.repository.PrivilegeGroupRepository;
 import com.itibari.auth.repository.PrivilegeRepository;
 import com.itibari.auth.repository.RoleRepository;
+import com.itibari.auth.service.AuthUserService;
 import com.itibari.auth.service.RoleService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -31,6 +32,7 @@ public class RoleServiceImpl implements RoleService {
     private final RoleRepository roleRepository;
     private final PrivilegeRepository privilegeRepository;
     private final PrivilegeGroupRepository privilegeGroupRepository;
+    private final AuthUserService authUserService;
 
     @Override
     @Transactional
@@ -56,6 +58,12 @@ public class RoleServiceImpl implements RoleService {
     @Transactional(readOnly = true)
     public Page<RoleResponse> getAllRoles(String searchParam, UUID parentTenantPublicId, Pageable pageable) {
         return roleRepository.listRoles(searchParam, parentTenantPublicId, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<RoleResponse> getTenantRoles(UUID userPublicId, String searchParam, Pageable pageable) {
+        return roleRepository.listRoles(searchParam, authUserService.getParentTenantPublicId(userPublicId), pageable);
     }
 
     @Override

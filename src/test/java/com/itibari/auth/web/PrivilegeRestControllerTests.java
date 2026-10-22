@@ -2,6 +2,7 @@ package com.itibari.auth.web;
 
 import com.itibari.auth.AuthIssuerApplicationTests;
 import com.itibari.auth.model.Privilege;
+import com.itibari.auth.model.PrivilegeGroup;
 import com.itibari.auth.model.request.PrivilegeDto;
 import com.itibari.auth.model.request.PrivilegeGroupDto;
 import com.itibari.auth.model.request.PrivilegeGroupPrivilegeDto;
@@ -92,5 +93,40 @@ class PrivilegeRestControllerTests extends AuthIssuerApplicationTests {
                 .statusCode(200)
                 .body("message", equalTo("successfully added privileges"))
                 .body("identity", containsString("EDIT_PRODUCT"));
+    }
+
+    @Test
+    void listTenantPrivilegeGroupsReturnsOnlyParentTenantGroups() {
+        String email = uniqueEmail("priv-group-tenant");
+        saveUser(email, "password123");
+        String token = login(email, "password123");
+        UUID tenantId = UUID.fromString(createParentShop(token, "Tenant Shop"));
+
+        PrivilegeGroup tenantGroup = savePrivilegeGroup("MODULE_VIEWS", tenantId);
+        savePrivilegeGroup("OTHER_TENANT_GROUP", UUID.randomUUID());
+        savePrivilegeGroup("GLOBAL_GROUP", null);
+
+        given()
+                .auth().oauth2(token)
+                .queryParam("searchParam", "MODULE_VIEWS")
+                .get("/privilege-groups/tenant")
+                .then().log().all()
+                .statusCode(200)
+                .body("totalElements", equalTo(1))
+                .body("content[0].name", equalTo("MODULE_VIEWS"))
+                .body("content[0].publicId", equalTo(tenantGroup.getPublicId().toString()));
+    }
+
+    @Test
+    void listTenantPrivilegeGroupsRequiresParentShop() {
+        String email = uniqueEmail("priv-group-no-shop");
+        saveUser(email, "password123");
+        String token = login(email, "password123");
+
+        given()
+                .auth().oauth2(token)
+                .get("/privilege-groups/tenant")
+                .then().log().all()
+                .statusCode(404);
     }
 }
