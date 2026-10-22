@@ -3,7 +3,9 @@ package com.itibari.auth;
 import com.itibari.auth.model.AuthUser;
 import com.itibari.auth.model.LoginRequest;
 import com.itibari.auth.model.Privilege;
+import com.itibari.auth.model.PrivilegeGroup;
 import com.itibari.auth.model.Role;
+import com.itibari.auth.model.request.CreateProfileDTO;
 import com.itibari.auth.repository.AuthUserRepository;
 import com.itibari.auth.repository.PrivilegeGroupRepository;
 import com.itibari.auth.repository.PrivilegeRepository;
@@ -93,9 +95,14 @@ public abstract class AuthIssuerApplicationTests {
     }
 
     protected Role saveRole(String name) {
+        return saveRole(name, null);
+    }
+
+    protected Role saveRole(String name, UUID parentTenantPublicId) {
         return roleRepository.save(Role.builder()
                 .name(name)
                 .description(name + " description")
+                .parentTenantPublicId(parentTenantPublicId)
                 .build());
     }
 
@@ -103,6 +110,29 @@ public abstract class AuthIssuerApplicationTests {
         return privilegeRepository.save(Privilege.builder()
                 .name(name)
                 .build());
+    }
+
+    protected PrivilegeGroup savePrivilegeGroup(String name, UUID parentTenantPublicId) {
+        return privilegeGroupRepository.save(PrivilegeGroup.builder()
+                .name(name)
+                .parentTenantPublicId(parentTenantPublicId)
+                .build());
+    }
+
+    protected String createParentShop(String token, String name) {
+        return given()
+                .auth().oauth2(token)
+                .contentType(ContentType.JSON)
+                .body(CreateProfileDTO.builder()
+                        .name(name)
+                        .country("TZ")
+                        .city("Dar")
+                        .build())
+                .post("/institutions")
+                .then()
+                .statusCode(200)
+                .extract()
+                .path("publicId");
     }
 
     protected String login(String identifier, String password) {

@@ -16,5 +16,7 @@ public interface PrivilegeGroupService {
 
     Page<PrivilegeGroupResponse> getPrivilegeGroups(String searchParam, UUID parentTenantPublicId, Pageable pageable);
 
+    Page<PrivilegeGroupResponse> getTenantPrivilegeGroups(UUID userPublicId, String searchParam, Pageable pageable);
+
     String assignPrivileges(UUID groupPublicId, @Valid PrivilegeGroupPrivilegeDto request);
 }

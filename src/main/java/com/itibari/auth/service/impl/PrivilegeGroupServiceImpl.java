@@ -8,6 +8,7 @@ import com.itibari.auth.model.request.PrivilegeGroupPrivilegeDto;
 import com.itibari.auth.model.response.PrivilegeGroupResponse;
 import com.itibari.auth.repository.PrivilegeGroupRepository;
 import com.itibari.auth.repository.PrivilegeRepository;
+import com.itibari.auth.service.AuthUserService;
 import com.itibari.auth.service.PrivilegeGroupService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -25,6 +26,7 @@ public class PrivilegeGroupServiceImpl implements PrivilegeGroupService {
 
     private final PrivilegeGroupRepository privilegeGroupRepository;
     private final PrivilegeRepository privilegeRepository;
+    private final AuthUserService authUserService;
 
     @Override
     @Transactional
@@ -41,6 +43,14 @@ public class PrivilegeGroupServiceImpl implements PrivilegeGroupService {
     public Page<PrivilegeGroupResponse> getPrivilegeGroups(String searchParam, UUID parentTenantPublicId,
                                                            Pageable pageable) {
         return privilegeGroupRepository.listGroups(searchParam, parentTenantPublicId, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<PrivilegeGroupResponse> getTenantPrivilegeGroups(UUID userPublicId, String searchParam,
+                                                                 Pageable pageable) {
+        return privilegeGroupRepository.listGroups(
+                searchParam, authUserService.getParentTenantPublicId(userPublicId), pageable);
     }
 
     @Override

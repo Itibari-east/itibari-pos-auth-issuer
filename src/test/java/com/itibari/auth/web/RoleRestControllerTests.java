@@ -78,4 +78,39 @@ class RoleRestControllerTests extends AuthIssuerApplicationTests {
                 .body("message", equalTo("successfully added privilege"))
                 .body("identity", containsString("VIEW_STOCK"));
     }
+
+    @Test
+    void listTenantRolesReturnsOnlyParentTenantRoles() {
+        String email = uniqueEmail("role-tenant");
+        saveUser(email, "password123");
+        String token = login(email, "password123");
+        UUID tenantId = UUID.fromString(createParentShop(token, "Tenant Shop"));
+
+        Role tenantRole = saveRole("CASHIER", tenantId);
+        saveRole("OTHER_TENANT_ROLE", UUID.randomUUID());
+        saveRole("GLOBAL_ROLE");
+
+        given()
+                .auth().oauth2(token)
+                .queryParam("searchParam", "CASHIER")
+                .get("/roles/tenant")
+                .then().log().all()
+                .statusCode(200)
+                .body("totalElements", equalTo(1))
+                .body("content[0].name", equalTo("CASHIER"))
+                .body("content[0].publicId", equalTo(tenantRole.getPublicId().toString()));
+    }
+
+    @Test
+    void listTenantRolesRequiresParentShop() {
+        String email = uniqueEmail("role-no-shop");
+        saveUser(email, "password123");
+        String token = login(email, "password123");
+
+        given()
+                .auth().oauth2(token)
+                .get("/roles/tenant")
+                .then().log().all()
+                .statusCode(404);
+    }
 }

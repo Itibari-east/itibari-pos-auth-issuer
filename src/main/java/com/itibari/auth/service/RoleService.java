@@ -16,6 +16,8 @@ public interface RoleService {
 
     Page<RoleResponse> getAllRoles(String searchParam, UUID parentTenantPublicId, Pageable pageable);
 
+    Page<RoleResponse> getTenantRoles(UUID userPublicId, String searchParam, Pageable pageable);
+
     String assignPrivilegeToRole(UUID rolePublicId, @Valid RolePrivilegeDto request);
 
     String assignPrivilegeGroupsToRole(UUID rolePublicId, @Valid RolePrivilegeGroupDto request);

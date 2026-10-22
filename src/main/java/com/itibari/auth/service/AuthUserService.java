@@ -47,4 +47,6 @@ public interface AuthUserService {
     AuthUser allocateShops(UUID requestingUserId, UUID userId, @Valid ShopAllocationDTO shopAllocationDTO);
 
     AuthUser removeShopAllocation(UUID requestingUserId, UUID userId, UUID parentTenantId, UUID shopId);
+
+    UUID getParentTenantPublicId(UUID userPublicId);
 }
