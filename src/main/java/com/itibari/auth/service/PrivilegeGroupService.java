@@ -12,7 +12,7 @@ import java.util.UUID;
 
 public interface PrivilegeGroupService {
 
-    PrivilegeGroup createPrivilegeGroup(@Valid PrivilegeGroupDto privilegeGroupDto);
+    PrivilegeGroup createPrivilegeGroup(@Valid PrivilegeGroupDto privilegeGroupDto, UUID loggedInUserPublicId);
 
     Page<PrivilegeGroupResponse> getPrivilegeGroups(String searchParam, UUID parentTenantPublicId, Pageable pageable);
 

@@ -12,7 +12,7 @@ import java.util.UUID;
 
 public interface RoleService {
 
-    RoleResponse createRole(@Valid CreateRoleDTO createRoleDTO);
+    RoleResponse createRole(@Valid CreateRoleDTO createRoleDTO, UUID loggedInUserPublicId);
 
     Page<RoleResponse> getAllRoles(String searchParam, UUID parentTenantPublicId, Pageable pageable);
 

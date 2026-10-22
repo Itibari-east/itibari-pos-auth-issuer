@@ -30,8 +30,9 @@ public class RoleRestController {
 
     @PostMapping
     @Operation(summary = "Create role")
-    public RoleResponse createRole(@Valid @RequestBody CreateRoleDTO createRoleDTO) {
-        return roleService.createRole(createRoleDTO);
+    public RoleResponse createRole(@Valid @RequestBody CreateRoleDTO createRoleDTO,
+                                   @AuthenticationPrincipal Jwt jwt) {
+        return roleService.createRole(createRoleDTO, userPublicId(jwt));
     }
 
     @GetMapping

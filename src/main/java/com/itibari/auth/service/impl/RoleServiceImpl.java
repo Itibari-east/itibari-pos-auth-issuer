@@ -36,11 +36,13 @@ public class RoleServiceImpl implements RoleService {
 
     @Override
     @Transactional
-    public RoleResponse createRole(CreateRoleDTO createRoleDTO) {
-        Optional<Role> existing = createRoleDTO.parentTenantPublicId() == null
-                ? roleRepository.findByNameIgnoreCaseAndParentTenantPublicIdIsNullAndDeletedIsFalse(createRoleDTO.name())
-                : roleRepository.findByNameIgnoreCaseAndParentTenantPublicIdAndDeletedIsFalse(
-                createRoleDTO.name(), createRoleDTO.parentTenantPublicId());
+    public RoleResponse createRole(CreateRoleDTO createRoleDTO, UUID loggedInUserPublicId) {
+        UUID tenantId = createRoleDTO.parentTenantPublicId() != null
+                ? createRoleDTO.parentTenantPublicId()
+                : authUserService.getParentTenantPublicId(loggedInUserPublicId);
+
+        Optional<Role> existing = roleRepository
+                .findByNameIgnoreCaseAndParentTenantPublicIdAndDeletedIsFalse(createRoleDTO.name(), tenantId);
 
         if (existing.isPresent()) {
             return existing.get().toRoleResponse();
@@ -49,7 +51,7 @@ public class RoleServiceImpl implements RoleService {
         Role role = Role.builder()
                 .name(createRoleDTO.name().trim())
                 .description(createRoleDTO.description())
-                .parentTenantPublicId(createRoleDTO.parentTenantPublicId())
+                .parentTenantPublicId(tenantId)
                 .build();
         return roleRepository.save(role).toRoleResponse();
     }

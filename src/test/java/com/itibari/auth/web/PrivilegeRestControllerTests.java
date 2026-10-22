@@ -96,6 +96,30 @@ class PrivilegeRestControllerTests extends AuthIssuerApplicationTests {
     }
 
     @Test
+    void createPrivilegeGroupWithoutTenantIdIsListedForLoggedInShop() {
+        String email = uniqueEmail("priv-group-ui-create");
+        saveUser(email, "password123");
+        String token = login(email, "password123");
+        createParentShop(token, "Tenant Shop");
+
+        given()
+                .auth().oauth2(token)
+                .contentType(ContentType.JSON)
+                .body(new PrivilegeGroupDto("UI Inventory", null))
+                .post("/privilege-groups")
+                .then().log().all()
+                .statusCode(200)
+                .body("identity", equalTo("UI Inventory"));
+
+        given()
+                .auth().oauth2(token)
+                .get("/privilege-groups/tenant")
+                .then().log().all()
+                .statusCode(200)
+                .body("content.name", hasItem("UI Inventory"));
+    }
+
+    @Test
     void listTenantPrivilegeGroupsReturnsOnlyParentTenantGroups() {
         String email = uniqueEmail("priv-group-tenant");
         saveUser(email, "password123");
