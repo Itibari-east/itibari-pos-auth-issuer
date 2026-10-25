@@ -31,14 +31,18 @@ public class PrivilegeGroupServiceImpl implements PrivilegeGroupService {
     @Override
     @Transactional
     public PrivilegeGroup createPrivilegeGroup(PrivilegeGroupDto privilegeGroupDto, UUID loggedInUserPublicId) {
+        String name = privilegeGroupDto.name().trim();
         UUID tenantId = privilegeGroupDto.parentTenantPublicId() != null
                 ? privilegeGroupDto.parentTenantPublicId()
                 : authUserService.getParentTenantPublicId(loggedInUserPublicId);
-        PrivilegeGroup group = PrivilegeGroup.builder()
-                .name(privilegeGroupDto.name().trim())
-                .parentTenantPublicId(tenantId)
-                .build();
-        return privilegeGroupRepository.save(group);
+        return privilegeGroupRepository
+                .findByNameIgnoreCaseAndParentTenantPublicIdAndDeletedIsFalse(name, tenantId)
+                .or(() -> privilegeGroupRepository
+                        .findByNameIgnoreCaseAndParentTenantPublicIdIsNullAndDeletedIsFalse(name))
+                .orElseGet(() -> privilegeGroupRepository.save(PrivilegeGroup.builder()
+                        .name(name)
+                        .parentTenantPublicId(tenantId)
+                        .build()));
     }
 
     @Override

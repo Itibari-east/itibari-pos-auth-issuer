@@ -5,6 +5,7 @@ import com.itibari.auth.exception.WrongPasswordException;
 import com.itibari.auth.model.AuthUser;
 import com.itibari.auth.model.LoginRequest;
 import com.itibari.auth.model.TokenResponse;
+import com.itibari.auth.model.request.ChangePasswordRequest;
 import com.itibari.auth.model.request.GoogleLoginRequest;
 import com.itibari.auth.model.request.ResetPasswordRequest;
 import com.itibari.auth.model.response.MessageResponse;
@@ -23,13 +24,17 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.UUID;
 
 @Tag(name = "Authentication")
 @RestController
@@ -98,6 +103,25 @@ public class LoginRestController {
     public ResponseEntity<MessageResponse> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         resetService.resetPassword(request);
         return ResponseEntity.ok(new MessageResponse("You have successfully reset your password"));
+    }
+
+    @PostMapping("/changePassword")
+    @Operation(summary = "Change password for the authenticated user",
+            responses = @ApiResponse(responseCode = "200", description = "Password changed", content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(example = Examples.CHANGE_PASSWORD_RESPONSE))),
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(required = true, content = @Content(
+                    examples = @ExampleObject(name = "Change password request",
+                            value = Examples.CHANGE_PASSWORD_REQUEST))))
+    public ResponseEntity<MessageResponse> changePassword(
+            @Valid @RequestBody ChangePasswordRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        resetService.changePassword(userPublicId(jwt), request);
+        return ResponseEntity.ok(new MessageResponse("You have successfully changed your password"));
+    }
+
+    private UUID userPublicId(Jwt jwt) {
+        return UUID.fromString(jwt.getClaimAsString("public_id"));
     }
 
 }

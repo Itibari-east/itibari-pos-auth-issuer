@@ -18,6 +18,7 @@ import com.itibari.auth.repository.InstitutionRepository;
 import com.itibari.auth.repository.RoleRepository;
 import com.itibari.auth.service.AuthUserService;
 import com.itibari.auth.service.NotificationClient;
+import com.itibari.auth.service.PassportFileService;
 import com.itibari.auth.service.ResetTokenService;
 import com.itibari.auth.service.components.email.EmailBodyCrafter;
 import com.itibari.auth.util.date.FormatDate;
@@ -53,6 +54,7 @@ public class AuthUserServiceImpl implements AuthUserService {
     private final PasswordEncoder passwordEncoder;
     private final ResetTokenService resetTokenService;
     private final NotificationClient notificationClient;
+    private final PassportFileService passportFileService;
 
     @Value("${app.password-setup.url:https://pos-dev.itibari.io/user/set-password}")
     private String passwordSetupUrl;
@@ -174,7 +176,8 @@ public class AuthUserServiceImpl implements AuthUserService {
     @Override
     @Transactional(readOnly = true)
     public Page<AuthUserResponse> getTenantUsers(UUID requestingUserId, String searchParam, Pageable pageable) {
-        return authUserRepository.findTenantUsers(getParentTenantForUser(requestingUserId), searchParam, pageable);
+        return passportFileService.attach(
+                authUserRepository.findTenantUsers(getParentTenantForUser(requestingUserId), searchParam, pageable));
     }
 
     @Override
@@ -205,7 +208,7 @@ public class AuthUserServiceImpl implements AuthUserService {
     @Override
     @Transactional(readOnly = true)
     public Page<AuthUserResponse> getUsers(String searchParam, Pageable pageable) {
-        return authUserRepository.listUsers(searchParam, pageable);
+        return passportFileService.attach(authUserRepository.listUsers(searchParam, pageable));
     }
 
     @Override
@@ -434,14 +437,14 @@ public class AuthUserServiceImpl implements AuthUserService {
     }
 
     private AuthUserResponse toResponse(AuthUser user) {
-        return AuthUserResponse.builder()
+        return passportFileService.attach(AuthUserResponse.builder()
                 .publicId(user.getPublicId())
                 .firstName(user.getFirstName())
                 .lastName(user.getLastName())
                 .phoneNumber(user.getPhoneNumber())
                 .email(user.getEmail())
                 .activeStatus(user.isActiveStatus())
-                .build();
+                .build());
     }
 
     private static <T> Page<T> toPage(List<T> items, Pageable pageable) {

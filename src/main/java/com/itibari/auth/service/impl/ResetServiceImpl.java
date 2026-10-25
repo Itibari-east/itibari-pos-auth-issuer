@@ -3,6 +3,7 @@ package com.itibari.auth.service.impl;
 import com.itibari.auth.exception.BadRequestException;
 import com.itibari.auth.exception.ResourceNotFoundException;
 import com.itibari.auth.model.AuthUser;
+import com.itibari.auth.model.request.ChangePasswordRequest;
 import com.itibari.auth.model.request.ResetPasswordRequest;
 import com.itibari.auth.model.response.ResetPasswordTokenResponse;
 import com.itibari.auth.repository.AuthUserRepository;
@@ -82,7 +83,28 @@ public class ResetServiceImpl implements ResetService {
             throw new BadRequestException("Invalid or expired reset token");
         }
 
-        user.setPassword(passwordEncoder.encode(request.newPassword()));
+        applyNewPassword(user, request.newPassword());
+    }
+
+    @Transactional
+    @Override
+    public void changePassword(UUID userPublicId, ChangePasswordRequest request) {
+        if (!request.newPassword().equals(request.confirmPassword())) {
+            throw new BadRequestException("Password do not match");
+        }
+
+        AuthUser user = authUserRepository.findByPublicIdAndDeletedIsFalse(userPublicId)
+                .orElseThrow(() -> new ResourceNotFoundException("User"));
+
+        if (passwordEncoder.matches(request.newPassword(), user.getPassword())) {
+            throw new BadRequestException("New password must be different from the current password");
+        }
+
+        applyNewPassword(user, request.newPassword());
+    }
+
+    private void applyNewPassword(AuthUser user, String newPassword) {
+        user.setPassword(passwordEncoder.encode(newPassword));
         user.setForcePasswordReset(false);
         user.setResetPasswordTokenHash(null);
         user.setResetPasswordTokenLookupHash(null);

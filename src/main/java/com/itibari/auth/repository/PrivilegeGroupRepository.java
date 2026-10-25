@@ -15,11 +15,20 @@ public interface PrivilegeGroupRepository extends JpaRepository<PrivilegeGroup, 
 
     Optional<PrivilegeGroup> findByPublicIdAndDeletedIsFalse(UUID publicId);
 
+    Optional<PrivilegeGroup> findByNameIgnoreCaseAndParentTenantPublicIdIsNullAndDeletedIsFalse(String name);
+
+    Optional<PrivilegeGroup> findByNameIgnoreCaseAndParentTenantPublicIdAndDeletedIsFalse(
+            String name, UUID parentTenantPublicId);
+
     @Query("""
             select new com.itibari.auth.model.response.PrivilegeGroupResponse(g.publicId, g.name)
             from PrivilegeGroup g
             where g.deleted = false
-              and (:parentTenantPublicId is null or g.parentTenantPublicId = :parentTenantPublicId)
+              and (
+                   :parentTenantPublicId is null
+                or g.parentTenantPublicId is null
+                or g.parentTenantPublicId = :parentTenantPublicId
+              )
               and (
                    :searchParam is null
                 or :searchParam = ''
