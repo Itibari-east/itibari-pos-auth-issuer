@@ -3,12 +3,14 @@ package com.itibari.auth.web;
 import com.itibari.auth.AuthIssuerApplicationTests;
 import com.itibari.auth.model.AuthUser;
 import com.itibari.auth.model.LoginRequest;
+import com.itibari.auth.model.request.ChangePasswordRequest;
 import com.itibari.auth.model.request.GoogleLoginRequest;
 import com.itibari.auth.model.request.ResetPasswordRequest;
 import com.itibari.auth.repository.AuthUserRepository;
 import com.itibari.auth.service.NotificationClient;
 import com.itibari.auth.service.ResetTokenService;
 import com.itibari.auth.util.date.FormatDate;
+import com.itibari.auth.validation.StrongPassword;
 import io.restassured.http.ContentType;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -170,7 +172,7 @@ class LoginRestControllerTests extends AuthIssuerApplicationTests {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(new ResetPasswordRequest(resetToken, "new-password-1", "new-password-1"))
+                .body(new ResetPasswordRequest(resetToken, "Password1!", "Password1!"))
                 .post("/login/resetPassword")
                 .then().log().all()
                 .statusCode(200)
@@ -188,7 +190,7 @@ class LoginRestControllerTests extends AuthIssuerApplicationTests {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(new LoginRequest(email, "new-password-1"))
+                .body(new LoginRequest(email, "Password1!"))
                 .post("/login")
                 .then()
                 .statusCode(200)
@@ -208,14 +210,14 @@ class LoginRestControllerTests extends AuthIssuerApplicationTests {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(new ResetPasswordRequest(setupToken, "chosen-password", "chosen-password"))
+                .body(new ResetPasswordRequest(setupToken, "Password1!", "Password1!"))
                 .post("/login/resetPassword")
                 .then()
                 .statusCode(200);
 
         given()
                 .contentType(ContentType.JSON)
-                .body(new LoginRequest(email, "chosen-password"))
+                .body(new LoginRequest(email, "Password1!"))
                 .post("/login")
                 .then()
                 .statusCode(200)
@@ -230,7 +232,7 @@ class LoginRestControllerTests extends AuthIssuerApplicationTests {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(new ResetPasswordRequest(resetToken, "new-password-1", "different"))
+                .body(new ResetPasswordRequest(resetToken, "Password1!", "different"))
                 .post("/login/resetPassword")
                 .then()
                 .statusCode(400)
@@ -247,7 +249,7 @@ class LoginRestControllerTests extends AuthIssuerApplicationTests {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(new ResetPasswordRequest("111111", "new-password-1", "new-password-1"))
+                .body(new ResetPasswordRequest("111111", "Password1!", "Password1!"))
                 .post("/login/resetPassword")
                 .then()
                 .statusCode(400)
@@ -266,7 +268,7 @@ class LoginRestControllerTests extends AuthIssuerApplicationTests {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(new ResetPasswordRequest(resetToken, "new-password-1", "new-password-1"))
+                .body(new ResetPasswordRequest(resetToken, "Password1!", "Password1!"))
                 .post("/login/resetPassword")
                 .then()
                 .statusCode(400)
@@ -280,11 +282,122 @@ class LoginRestControllerTests extends AuthIssuerApplicationTests {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(new ResetPasswordRequest("123456", "new-password-1", "new-password-1"))
+                .body(new ResetPasswordRequest("123456", "Password1!", "Password1!"))
                 .post("/login/resetPassword")
                 .then()
                 .statusCode(400)
                 .body("detail", equalTo("Invalid or expired reset token"));
+    }
+
+    @Test
+    void changePasswordShouldUpdatePasswordForAuthenticatedUser() {
+        String email = uniqueEmail("change-ok");
+        saveUser(email, "password123");
+        String token = login(email, "password123");
+
+        given()
+                .auth().oauth2(token)
+                .contentType(ContentType.JSON)
+                .body(new ChangePasswordRequest("Password1!", "Password1!"))
+                .post("/login/changePassword")
+                .then().log().all()
+                .statusCode(200)
+                .body("message", equalTo("You have successfully changed your password"));
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(new LoginRequest(email, "password123"))
+                .post("/login")
+                .then()
+                .statusCode(401);
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(new LoginRequest(email, "Password1!"))
+                .post("/login")
+                .then()
+                .statusCode(200)
+                .body("accessToken", not(blankOrNullString()));
+    }
+
+    @Test
+    void changePasswordShouldRejectMissingToken() {
+        given()
+                .contentType(ContentType.JSON)
+                .body(new ChangePasswordRequest("Password1!", "Password1!"))
+                .post("/login/changePassword")
+                .then().log().all()
+                .statusCode(401);
+    }
+
+    @Test
+    void changePasswordShouldRejectMismatchedConfirmation() {
+        String email = uniqueEmail("change-mismatch");
+        saveUser(email, "password123");
+        String token = login(email, "password123");
+
+        given()
+                .auth().oauth2(token)
+                .contentType(ContentType.JSON)
+                .body(new ChangePasswordRequest("Password1!", "different"))
+                .post("/login/changePassword")
+                .then()
+                .statusCode(400)
+                .body("detail", equalTo("Password do not match"));
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(new LoginRequest(email, "password123"))
+                .post("/login")
+                .then()
+                .statusCode(200);
+    }
+
+    @Test
+    void changePasswordShouldRejectCurrentPassword() {
+        String email = uniqueEmail("change-same");
+        saveUser(email, "Password1!");
+        String token = login(email, "Password1!");
+
+        given()
+                .auth().oauth2(token)
+                .contentType(ContentType.JSON)
+                .body(new ChangePasswordRequest("Password1!", "Password1!"))
+                .post("/login/changePassword")
+                .then()
+                .statusCode(400)
+                .body("detail", equalTo("New password must be different from the current password"));
+    }
+
+    @Test
+    void resetPasswordShouldRejectWeakPassword() {
+        String email = uniqueEmail("reset-weak");
+        saveUser(email, "password123");
+        String resetToken = requestResetToken(email);
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(new ResetPasswordRequest(resetToken, "weakpass", "weakpass"))
+                .post("/login/resetPassword")
+                .then()
+                .statusCode(400)
+                .body("detail", containsString(StrongPassword.MESSAGE));
+    }
+
+    @Test
+    void changePasswordShouldRejectWeakPassword() {
+        String email = uniqueEmail("change-weak");
+        saveUser(email, "password123");
+        String token = login(email, "password123");
+
+        given()
+                .auth().oauth2(token)
+                .contentType(ContentType.JSON)
+                .body(new ChangePasswordRequest("weakpass", "weakpass"))
+                .post("/login/changePassword")
+                .then()
+                .statusCode(400)
+                .body("detail", containsString(StrongPassword.MESSAGE));
     }
 
     private String requestResetToken(String email) {

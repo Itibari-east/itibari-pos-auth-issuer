@@ -1,6 +1,8 @@
 package com.itibari.auth;
 
+import com.itibari.auth.client.file.FileFeignClient;
 import com.itibari.auth.model.AuthUser;
+import com.itibari.auth.service.AccessCatalogService;
 import com.itibari.auth.model.LoginRequest;
 import com.itibari.auth.model.Privilege;
 import com.itibari.auth.model.PrivilegeGroup;
@@ -19,6 +21,7 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.util.UUID;
 
@@ -49,6 +52,12 @@ public abstract class AuthIssuerApplicationTests {
     @Autowired
     protected JdbcTemplate jdbcTemplate;
 
+    @MockitoBean
+    protected FileFeignClient fileFeignClient;
+
+    @Autowired
+    protected AccessCatalogService accessCatalogService;
+
     @BeforeEach
     void setUpRestAssured() {
         RestAssured.baseURI = "http://localhost";
@@ -75,6 +84,7 @@ public abstract class AuthIssuerApplicationTests {
         jdbcTemplate.execute("DELETE FROM pos_core.notification_preferences");
         jdbcTemplate.execute("DELETE FROM pos_core.auth_users");
         // keep seeded subscription catalog plans
+        accessCatalogService.seedGlobalCatalog();
     }
 
     protected AuthUser saveUser(String email, String rawPassword) {

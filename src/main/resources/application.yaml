@@ -81,6 +81,10 @@ app:
   password-setup:
     url: ${PASSWORD_SETUP_URL:https://micro-pos-dev.itibari.io/user/set-password}
 
+pos:
+  files:
+    public-base-url: ${FILE_PUBLIC_BASE_URL:https://api-pos-dev.itibari.io/api/v1/pos}
+
 logging:
   level:
     org.springframework.security: INFO

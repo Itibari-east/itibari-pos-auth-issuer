@@ -7,16 +7,21 @@ import com.itibari.auth.model.Role;
 import com.itibari.auth.model.request.AuthUserRequest;
 import com.itibari.auth.model.request.CreateUserDTO;
 import com.itibari.auth.model.request.UserRoleDto;
+import com.itibari.auth.validation.StrongPassword;
 import io.restassured.http.ContentType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
 
 class UserRestControllerTests extends AuthIssuerApplicationTests {
 
@@ -31,8 +36,8 @@ class UserRestControllerTests extends AuthIssuerApplicationTests {
                         .lastName("Lovelace")
                         .contactEmail(email)
                         .contactPhoneNumber("+255700000001")
-                        .password("secure-password")
-                        .confirmPassword("secure-password")
+                        .password("Password1!")
+                        .confirmPassword("Password1!")
                         .build())
                 .post("/users")
                 .then().log().all()
@@ -41,10 +46,31 @@ class UserRestControllerTests extends AuthIssuerApplicationTests {
                 .body("identity", equalToIgnoringCase("Ada Lovelace"));
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"Short1!", "noupper1!", "NOLOWER1!", "NoNumber!", "NoSpecial1"})
+    void createUserShouldRejectWeakPassword(String password) {
+        String email = uniqueEmail("weak");
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(CreateUserDTO.builder()
+                        .firstName("Ada")
+                        .lastName("Lovelace")
+                        .contactEmail(email)
+                        .contactPhoneNumber("+255700000003")
+                        .password(password)
+                        .confirmPassword(password)
+                        .build())
+                .post("/users")
+                .then()
+                .statusCode(400)
+                .body("detail", containsString(StrongPassword.MESSAGE));
+    }
+
     @Test
     void createdUserCanLogIn() {
         String email = uniqueEmail("created-login");
-        String password = "secure-password";
+        String password = "Password1!";
 
         given()
                 .contentType(ContentType.JSON)
@@ -84,7 +110,28 @@ class UserRestControllerTests extends AuthIssuerApplicationTests {
                 .body("email", equalToIgnoringCase(email))
                 .body("firstName", equalTo("Test"))
                 .body("lastName", equalTo("User"))
-                .body("activeStatus", equalTo(true));
+                .body("activeStatus", equalTo(true))
+                .body("passportUrl", nullValue());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"/users/me", "/users/currentUser"})
+    void currentUserReturnsPassportUrl(String path) {
+        String email = uniqueEmail("passport");
+        AuthUser user = saveUser(email, "password123");
+        String token = login(email, "password123");
+        String passportUrl = "https://api-pos-dev.itibari.io/api/v1/pos/files/"
+                + UUID.randomUUID() + "/content";
+        when(fileFeignClient.latestFileUrls(eq("PASSPORT"), anyList()))
+                .thenReturn(Map.of(user.getPublicId(), passportUrl));
+
+        given()
+                .auth().oauth2(token)
+                .get(path)
+                .then().log().all()
+                .statusCode(200)
+                .body("email", equalToIgnoringCase(email))
+                .body("passportUrl", equalTo(passportUrl));
     }
 
     @ParameterizedTest

@@ -90,18 +90,18 @@ class RoleRestControllerTests extends AuthIssuerApplicationTests {
         String token = login(email, "password123");
         UUID tenantId = UUID.fromString(createParentShop(token, "Tenant Shop"));
 
-        Role tenantRole = saveRole("CASHIER", tenantId);
+        Role tenantRole = saveRole("NIGHT_CASHIER", tenantId);
         saveRole("OTHER_TENANT_ROLE", UUID.randomUUID());
         saveRole("GLOBAL_ROLE");
 
         given()
                 .auth().oauth2(token)
-                .queryParam("searchParam", "CASHIER")
+                .queryParam("searchParam", "NIGHT_CASHIER")
                 .get("/roles/tenant")
                 .then().log().all()
                 .statusCode(200)
                 .body("totalElements", equalTo(1))
-                .body("content[0].name", equalTo("CASHIER"))
+                .body("content[0].name", equalTo("NIGHT_CASHIER"))
                 .body("content[0].publicId", equalTo(tenantRole.getPublicId().toString()));
     }
 

@@ -6,7 +6,7 @@ public final class Examples {
     }
 
     public static final String CREATE_USER_REQUEST =
-            "{\"firstName\":\"user1\",\"lastName\":\"user2\",\"contactEmail\":\"user1@admin.com\",\"contactPhoneNumber\":\"+250700000000\",\"password\":\"123user!u\",\"confirmPassword\":\"123user!u\"}";
+            "{\"firstName\":\"user1\",\"lastName\":\"user2\",\"contactEmail\":\"user1@admin.com\",\"contactPhoneNumber\":\"+250700000000\",\"password\":\"Password1!\",\"confirmPassword\":\"Password1!\"}";
 
     public static final String CREATE_USER_OK_RESPONSE =
             "{\"message\":\"User created successfully\",\"identity\":\"user1 user2\"}";
@@ -21,13 +21,13 @@ public final class Examples {
             "{\"message\":\"User created successfully\",\"identity\":\"Jane Doe\",\"publicId\":\"0bad0e09-c448-4810-a5a5-5dbe0fb436f1\"}";
 
     public static final String GET_USER_OK_RESPONSE =
-            "{\"publicId\":\"04f677b4-dec6-43ef-af1e-398fb83a6c6e\",\"firstName\":\"Alice\",\"lastName\":\"Admin\",\"phoneNumber\":\"+250700000000\",\"email\":\"alice@example.com\",\"activeStatus\":true}";
+            "{\"publicId\":\"04f677b4-dec6-43ef-af1e-398fb83a6c6e\",\"firstName\":\"Alice\",\"lastName\":\"Admin\",\"phoneNumber\":\"+250700000000\",\"email\":\"alice@example.com\",\"activeStatus\":true,\"passportUrl\":\"https://api-pos-dev.itibari.io/api/v1/pos/files/1f0e2d3c-4b5a-4968-8776-a5b4c3d2e1f0/content\"}";
 
     public static final String USERS_OK_RESPONSE =
-            "{\"totalElements\":2,\"pageSize\":2,\"totalPages\":1,\"last\":true,\"first\":true,\"pageNumber\":0,\"content\":[{\"publicId\":\"04f677b4-dec6-43ef-af1e-398fb83a6c6e\",\"firstName\":\"Alice\",\"lastName\":\"Admin\",\"phoneNumber\":\"+250700000000\",\"email\":\"alice@example.com\",\"activeStatus\":true},{\"publicId\":\"0bad0e09-c448-4810-a5a5-5dbe0fb436f1\",\"firstName\":\"Bob\",\"lastName\":\"Builder\",\"phoneNumber\":\"+250700000000\",\"email\":\"bob@example.com\",\"activeStatus\":true}]}";
+            "{\"totalElements\":2,\"pageSize\":2,\"totalPages\":1,\"last\":true,\"first\":true,\"pageNumber\":0,\"content\":[{\"publicId\":\"04f677b4-dec6-43ef-af1e-398fb83a6c6e\",\"firstName\":\"Alice\",\"lastName\":\"Admin\",\"phoneNumber\":\"+250700000000\",\"email\":\"alice@example.com\",\"activeStatus\":true,\"passportUrl\":\"https://api-pos-dev.itibari.io/api/v1/pos/files/1f0e2d3c-4b5a-4968-8776-a5b4c3d2e1f0/content\"},{\"publicId\":\"0bad0e09-c448-4810-a5a5-5dbe0fb436f1\",\"firstName\":\"Bob\",\"lastName\":\"Builder\",\"phoneNumber\":\"+250700000000\",\"email\":\"bob@example.com\",\"activeStatus\":true,\"passportUrl\":null}]}";
 
     public static final String SESSION_USER_OK_RESPONSE =
-            "{\"publicId\":\"0bad0e09-c448-4810-a5a5-5dbe0fb436f1\",\"firstName\":\"Bob\",\"lastName\":\"Builder\",\"phoneNumber\":\"+250700000000\",\"email\":\"bob@example.com\",\"activeStatus\":true}";
+            "{\"publicId\":\"0bad0e09-c448-4810-a5a5-5dbe0fb436f1\",\"firstName\":\"Bob\",\"lastName\":\"Builder\",\"phoneNumber\":\"+250700000000\",\"email\":\"bob@example.com\",\"activeStatus\":true,\"passportUrl\":\"https://api-pos-dev.itibari.io/api/v1/pos/files/1f0e2d3c-4b5a-4968-8776-a5b4c3d2e1f0/content\"}";
 
     public static final String UPDATE_USER_REQUEST =
             "{\"firstName\":\"Alice\",\"lastName\":\"Admin\",\"phoneNumber\":\"+250700000000\",\"email\":\"alice@example.com\"}";
@@ -57,8 +57,14 @@ public final class Examples {
             "{\"resetToken\":\"123456\",\"expiresAt\":\"5\"}";
 
     public static final String RESET_PASSWORD_REQUEST =
-            "{\"resetToken\":\"123456\",\"newPassword\":\"newPassword\",\"confirmPassword\":\"newPassword\"}";
+            "{\"resetToken\":\"123456\",\"newPassword\":\"Password1!\",\"confirmPassword\":\"Password1!\"}";
 
     public static final String RESET_PASSWORD_RESPONSE =
             "{\"message\":\"You have successfully reset your password\"}";
+
+    public static final String CHANGE_PASSWORD_REQUEST =
+            "{\"newPassword\":\"Password1!\",\"confirmPassword\":\"Password1!\"}";
+
+    public static final String CHANGE_PASSWORD_RESPONSE =
+            "{\"message\":\"You have successfully changed your password\"}";
 }

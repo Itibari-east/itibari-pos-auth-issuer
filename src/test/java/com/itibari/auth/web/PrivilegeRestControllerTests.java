@@ -48,7 +48,7 @@ class PrivilegeRestControllerTests extends AuthIssuerApplicationTests {
         given()
                 .auth().oauth2(token)
                 .queryParam("page", 0)
-                .queryParam("size", 10)
+                .queryParam("size", 100)
                 .get("/privileges")
                 .then().log().all()
                 .statusCode(200)
@@ -67,20 +67,21 @@ class PrivilegeRestControllerTests extends AuthIssuerApplicationTests {
         given()
                 .auth().oauth2(token)
                 .contentType(ContentType.JSON)
-                .body(new PrivilegeGroupDto("Inventory", tenantId))
+                .body(new PrivilegeGroupDto("Warehouse Docs", tenantId))
                 .post("/privilege-groups")
                 .then().log().all()
                 .statusCode(200)
                 .body("message", equalTo("successfully created privilege group"))
-                .body("identity", equalTo("Inventory"));
+                .body("identity", equalTo("Warehouse Docs"));
 
         String publicId = given()
                 .auth().oauth2(token)
                 .queryParam("parentTenantPublicId", tenantId)
+                .queryParam("searchParam", "Warehouse Docs")
                 .get("/privilege-groups")
                 .then().log().all()
                 .statusCode(200)
-                .body("content.name", hasItem("Inventory"))
+                .body("content.name", hasItem("Warehouse Docs"))
                 .extract()
                 .path("content[0].publicId");
 

@@ -19,6 +19,7 @@ import com.itibari.auth.repository.AuthUserRepository;
 import com.itibari.auth.repository.InstitutionRepository;
 import com.itibari.auth.repository.NotificationPreferenceRepository;
 import com.itibari.auth.repository.ShopSubscriptionDetailRepository;
+import com.itibari.auth.service.AccessCatalogService;
 import com.itibari.auth.service.InstitutionService;
 import com.itibari.auth.service.SubscriptionAccessService;
 import com.itibari.auth.util.date.FormatDate;
@@ -43,6 +44,7 @@ public class InstitutionServiceImpl implements InstitutionService {
     private final ShopSubscriptionDetailRepository shopSubscriptionDetailRepository;
     private final SubscriptionAccessService subscriptionAccessService;
     private final InstitutionMapper institutionMapper;
+    private final AccessCatalogService accessCatalogService;
 
     @Override
     @Transactional
@@ -67,6 +69,7 @@ public class InstitutionServiceImpl implements InstitutionService {
         user.setInstitution(saved);
         user.getInstitutions().add(saved);
         authUserRepository.save(user);
+        accessCatalogService.seedTenantRoles(saved.getPublicId(), user);
         return saved;
     }
 

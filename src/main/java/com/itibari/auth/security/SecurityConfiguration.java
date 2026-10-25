@@ -22,6 +22,7 @@ public class SecurityConfiguration {
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/users").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/login/changePassword").authenticated()
                         .requestMatchers(
                                 "/login/**",
                                 "/actuator/**",
