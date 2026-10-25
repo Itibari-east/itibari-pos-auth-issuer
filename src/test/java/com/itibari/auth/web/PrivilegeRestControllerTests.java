@@ -62,12 +62,12 @@ class PrivilegeRestControllerTests extends AuthIssuerApplicationTests {
         saveUser(email, "password123");
         String token = login(email, "password123");
         Privilege privilege = savePrivilege("EDIT_PRODUCT");
-        UUID tenantId = UUID.randomUUID();
+        createParentShop(token, "Tenant Shop");
 
         given()
                 .auth().oauth2(token)
                 .contentType(ContentType.JSON)
-                .body(new PrivilegeGroupDto("Warehouse Docs", tenantId))
+                .body(new PrivilegeGroupDto("Warehouse Docs", null))
                 .post("/privilege-groups")
                 .then().log().all()
                 .statusCode(200)
@@ -76,7 +76,6 @@ class PrivilegeRestControllerTests extends AuthIssuerApplicationTests {
 
         String publicId = given()
                 .auth().oauth2(token)
-                .queryParam("parentTenantPublicId", tenantId)
                 .queryParam("searchParam", "Warehouse Docs")
                 .get("/privilege-groups")
                 .then().log().all()
@@ -94,6 +93,40 @@ class PrivilegeRestControllerTests extends AuthIssuerApplicationTests {
                 .statusCode(200)
                 .body("message", equalTo("successfully added privileges"))
                 .body("identity", containsString("EDIT_PRODUCT"));
+
+        given()
+                .auth().oauth2(token)
+                .get("/privilege-groups/{groupPublicId}/privileges", publicId)
+                .then().log().all()
+                .statusCode(200)
+                .body("content.name", hasItem("EDIT_PRODUCT"))
+                .body("content.publicId", hasItem(privilege.getPublicId().toString()));
+    }
+
+    @Test
+    void listPrivilegesForCatalogGroupWorks() {
+        String email = uniqueEmail("priv-group-catalog");
+        saveUser(email, "password123");
+        String token = login(email, "password123");
+        createParentShop(token, "Catalog Group Shop");
+
+        String salesGroupId = given()
+                .auth().oauth2(token)
+                .queryParam("searchParam", "SALES")
+                .get("/privilege-groups")
+                .then()
+                .statusCode(200)
+                .body("content.name", hasItem("SALES"))
+                .extract()
+                .path("content.find { it.name == 'SALES' }.publicId");
+
+        given()
+                .auth().oauth2(token)
+                .get("/privilege-groups/{groupPublicId}/privileges", salesGroupId)
+                .then().log().all()
+                .statusCode(200)
+                .body("content.name", hasItems("VIEW_SALES", "CREATE_INVOICE", "CREATE_QUOTATION",
+                        "CREATE_PROFORMA", "VIEW_RETURNS"));
     }
 
     @Test

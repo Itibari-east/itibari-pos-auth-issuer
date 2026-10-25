@@ -8,6 +8,8 @@ import com.itibari.auth.model.request.AuthUserRequest;
 import com.itibari.auth.model.request.CreateUserDTO;
 import com.itibari.auth.model.request.UserRoleDto;
 import com.itibari.auth.validation.StrongPassword;
+import com.lowagie.text.pdf.PdfReader;
+import com.lowagie.text.pdf.parser.PdfTextExtractor;
 import io.restassured.http.ContentType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -19,6 +21,7 @@ import java.util.UUID;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -214,5 +217,41 @@ class UserRestControllerTests extends AuthIssuerApplicationTests {
                 .get("/users/{publicId}", UUID.randomUUID())
                 .then().log().all()
                 .statusCode(404);
+    }
+
+    @Test
+    void downloadUserAccessReportPdfWorks() throws Exception {
+        String email = uniqueEmail("access-pdf");
+        AuthUser user = saveUser(email, "password123");
+        String token = login(email, "password123");
+        createParentShop(token, "PDF Shop");
+
+        byte[] pdf = given()
+                .auth().oauth2(token)
+                .get("/users/{userId}/access-report", user.getPublicId())
+                .then().log().all()
+                .statusCode(200)
+                .contentType("application/pdf")
+                .header("Content-Disposition", containsString("access-report.pdf"))
+                .extract()
+                .asByteArray();
+
+        assertTrue(pdf.length > 100);
+        assertTrue(new String(pdf, 0, 4).startsWith("%PDF"));
+
+        PdfReader reader = new PdfReader(pdf);
+        try {
+            String text = new PdfTextExtractor(reader, true).getTextFromPage(1, true)
+                    .replaceAll("<[^>]+>", " ")
+                    .replaceAll("\\s+", " ");
+            assertTrue(text.contains("User Access Report"), text);
+            assertTrue(text.replace(" ", "").toLowerCase().contains(email.replace(" ", "").toLowerCase()), text);
+            assertTrue(text.contains("Owner"), text);
+            assertTrue(text.contains("SALES"), text);
+            assertTrue(text.contains("VIEW_SALES"), text);
+            assertTrue(text.contains("PDF Shop"), text);
+        } finally {
+            reader.close();
+        }
     }
 }

@@ -7,6 +7,7 @@ import com.itibari.auth.model.Role;
 import com.itibari.auth.model.request.CreateRoleDTO;
 import com.itibari.auth.model.request.RolePrivilegeDto;
 import com.itibari.auth.model.request.RolePrivilegeGroupDto;
+import com.itibari.auth.model.response.PrivilegeGroupResponse;
 import com.itibari.auth.model.response.RoleResponse;
 import com.itibari.auth.repository.PrivilegeGroupRepository;
 import com.itibari.auth.repository.PrivilegeRepository;
@@ -87,6 +88,14 @@ public class RoleServiceImpl implements RoleService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Page<PrivilegeGroupResponse> getRolePrivilegeGroups(UUID rolePublicId, UUID loggedInUserPublicId,
+                                                               Pageable pageable) {
+        requireTenantRole(rolePublicId, loggedInUserPublicId);
+        return privilegeGroupRepository.listGroupsByRolePublicId(rolePublicId, pageable);
+    }
+
+    @Override
     @Transactional
     public String assignPrivilegeGroupsToRole(UUID rolePublicId, RolePrivilegeGroupDto request) {
         Role role = requireRole(rolePublicId);
@@ -102,5 +111,14 @@ public class RoleServiceImpl implements RoleService {
     private Role requireRole(UUID rolePublicId) {
         return roleRepository.findByPublicIdAndDeletedIsFalse(rolePublicId)
                 .orElseThrow(() -> new ResourceNotFoundException("Role"));
+    }
+
+    private Role requireTenantRole(UUID rolePublicId, UUID loggedInUserPublicId) {
+        Role role = requireRole(rolePublicId);
+        UUID tenantId = authUserService.getParentTenantPublicId(loggedInUserPublicId);
+        if (!tenantId.equals(role.getParentTenantPublicId())) {
+            throw new ResourceNotFoundException("Role");
+        }
+        return role;
     }
 }

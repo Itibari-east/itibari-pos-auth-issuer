@@ -5,6 +5,7 @@ import com.itibari.auth.model.request.RolePrivilegeDto;
 import com.itibari.auth.model.request.RolePrivilegeGroupDto;
 import com.itibari.auth.model.response.CustomResponse;
 import com.itibari.auth.model.response.PageResponse;
+import com.itibari.auth.model.response.PrivilegeGroupResponse;
 import com.itibari.auth.model.response.RoleResponse;
 import com.itibari.auth.service.RoleService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -39,13 +40,9 @@ public class RoleRestController {
     @Operation(summary = "List roles for the authenticated user's parent tenant")
     public PageResponse<RoleResponse> getAllRoles(
             @RequestParam(name = "searchParam", required = false) String searchParam,
-            @RequestParam(name = "parentTenantPublicId", required = false) UUID parentTenantPublicId,
             @PageableDefault(size = 20) Pageable pageable,
             @AuthenticationPrincipal Jwt jwt) {
-        if (parentTenantPublicId == null) {
-            return PageResponse.from(roleService.getTenantRoles(userPublicId(jwt), searchParam, pageable));
-        }
-        return PageResponse.from(roleService.getAllRoles(searchParam, parentTenantPublicId, pageable));
+        return PageResponse.from(roleService.getTenantRoles(userPublicId(jwt), searchParam, pageable));
     }
 
     @GetMapping("/tenant")
@@ -64,6 +61,16 @@ public class RoleRestController {
             @Valid @RequestBody RolePrivilegeDto request) {
         String privileges = roleService.assignPrivilegeToRole(rolePublicId, request);
         return ResponseEntity.ok(new CustomResponse("successfully added privilege", privileges));
+    }
+
+    @GetMapping("/{rolePublicId}/privilege-groups")
+    @Operation(summary = "List privilege groups attached to a role")
+    public PageResponse<PrivilegeGroupResponse> getRolePrivilegeGroups(
+            @PathVariable UUID rolePublicId,
+            @PageableDefault(size = 50) Pageable pageable,
+            @AuthenticationPrincipal Jwt jwt) {
+        return PageResponse.from(
+                roleService.getRolePrivilegeGroups(rolePublicId, userPublicId(jwt), pageable));
     }
 
     @PatchMapping("/{rolePublicId}/privilege-groups")
