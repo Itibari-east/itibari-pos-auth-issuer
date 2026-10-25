@@ -1,10 +1,12 @@
 package com.itibari.auth.web;
 
 import com.itibari.auth.AuthIssuerApplicationTests;
+import com.itibari.auth.access.AccessCatalog;
 import com.itibari.auth.model.Privilege;
 import com.itibari.auth.model.Role;
 import com.itibari.auth.model.request.CreateRoleDTO;
 import com.itibari.auth.model.request.RolePrivilegeDto;
+import com.itibari.auth.model.request.RolePrivilegeGroupDto;
 import io.restassured.http.ContentType;
 import org.junit.jupiter.api.Test;
 
@@ -152,5 +154,76 @@ class RoleRestControllerTests extends AuthIssuerApplicationTests {
                 .get("/roles/tenant")
                 .then().log().all()
                 .statusCode(404);
+    }
+
+    @Test
+    void listPrivilegeGroupsAttachedToRoleWorks() {
+        String email = uniqueEmail("role-groups");
+        saveUser(email, "password123");
+        String token = login(email, "password123");
+        createParentShop(token, "Role Groups Shop");
+
+        String cashierRoleId = given()
+                .auth().oauth2(token)
+                .queryParam("searchParam", AccessCatalog.CASHIER_ROLE)
+                .get("/roles")
+                .then()
+                .statusCode(200)
+                .extract()
+                .path("content.find { it.name == '" + AccessCatalog.CASHIER_ROLE + "' }.publicId");
+
+        given()
+                .auth().oauth2(token)
+                .get("/roles/{rolePublicId}/privilege-groups", cashierRoleId)
+                .then().log().all()
+                .statusCode(200)
+                .body("content.name", hasItems("POS", "SALES", "CUSTOMERS", "DASHBOARD"))
+                .body("content.name", not(hasItem("INVENTORY")));
+    }
+
+    @Test
+    void assignPrivilegeGroupsToRoleThenListThem() {
+        String email = uniqueEmail("role-assign-groups");
+        saveUser(email, "password123");
+        String token = login(email, "password123");
+        createParentShop(token, "Assign Groups Shop");
+
+        String roleId = given()
+                .auth().oauth2(token)
+                .contentType(ContentType.JSON)
+                .body(CreateRoleDTO.builder()
+                        .name("SHIFT_LEAD")
+                        .description("Custom role")
+                        .build())
+                .post("/roles")
+                .then()
+                .statusCode(200)
+                .extract()
+                .path("publicId");
+
+        String salesGroupId = given()
+                .auth().oauth2(token)
+                .queryParam("searchParam", "SALES")
+                .get("/privilege-groups")
+                .then()
+                .statusCode(200)
+                .extract()
+                .path("content.find { it.name == 'SALES' }.publicId");
+
+        given()
+                .auth().oauth2(token)
+                .contentType(ContentType.JSON)
+                .body(new RolePrivilegeGroupDto(List.of(UUID.fromString(salesGroupId))))
+                .patch("/roles/{rolePublicId}/privilege-groups", roleId)
+                .then()
+                .statusCode(200)
+                .body("identity", containsString("SALES"));
+
+        given()
+                .auth().oauth2(token)
+                .get("/roles/{rolePublicId}/privilege-groups", roleId)
+                .then().log().all()
+                .statusCode(200)
+                .body("content.name", contains("SALES"));
     }
 }

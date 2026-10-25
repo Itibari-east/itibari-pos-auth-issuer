@@ -44,6 +44,8 @@ public interface AuthUserService {
 
     Page<Map<String, Map<String, Object>>> getUserPrivileges(UUID userId, Pageable pageable);
 
+    byte[] getUserAccessReportPdf(UUID requestingUserId, UUID userId);
+
     AuthUser allocateShops(UUID requestingUserId, UUID userId, @Valid ShopAllocationDTO shopAllocationDTO);
 
     AuthUser removeShopAllocation(UUID requestingUserId, UUID userId, UUID parentTenantId, UUID shopId);

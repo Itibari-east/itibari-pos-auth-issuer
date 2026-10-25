@@ -6,6 +6,7 @@ import com.itibari.auth.model.PrivilegeGroup;
 import com.itibari.auth.model.request.PrivilegeGroupDto;
 import com.itibari.auth.model.request.PrivilegeGroupPrivilegeDto;
 import com.itibari.auth.model.response.PrivilegeGroupResponse;
+import com.itibari.auth.model.response.PrivilegeResponse;
 import com.itibari.auth.repository.PrivilegeGroupRepository;
 import com.itibari.auth.repository.PrivilegeRepository;
 import com.itibari.auth.service.AuthUserService;
@@ -58,6 +59,21 @@ public class PrivilegeGroupServiceImpl implements PrivilegeGroupService {
                                                                  Pageable pageable) {
         return privilegeGroupRepository.listGroups(
                 searchParam, authUserService.getParentTenantPublicId(userPublicId), pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<PrivilegeResponse> getGroupPrivileges(UUID groupPublicId, UUID loggedInUserPublicId,
+                                                      Pageable pageable) {
+        PrivilegeGroup group = privilegeGroupRepository.findByPublicIdAndDeletedIsFalse(groupPublicId)
+                .orElseThrow(() -> new ResourceNotFoundException("Privilege group"));
+        UUID tenantId = authUserService.getParentTenantPublicId(loggedInUserPublicId);
+        boolean visibleToTenant = group.getParentTenantPublicId() == null
+                || tenantId.equals(group.getParentTenantPublicId());
+        if (!visibleToTenant) {
+            throw new ResourceNotFoundException("Privilege group");
+        }
+        return privilegeRepository.listPrivilegesByGroupPublicId(groupPublicId, pageable);
     }
 
     @Override

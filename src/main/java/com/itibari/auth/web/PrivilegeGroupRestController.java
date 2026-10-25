@@ -6,6 +6,7 @@ import com.itibari.auth.model.request.PrivilegeGroupPrivilegeDto;
 import com.itibari.auth.model.response.CustomResponse;
 import com.itibari.auth.model.response.PageResponse;
 import com.itibari.auth.model.response.PrivilegeGroupResponse;
+import com.itibari.auth.model.response.PrivilegeResponse;
 import com.itibari.auth.service.PrivilegeGroupService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -41,15 +42,10 @@ public class PrivilegeGroupRestController {
     @Operation(summary = "List privilege groups for the authenticated user's parent tenant")
     public PageResponse<PrivilegeGroupResponse> getAllPrivilegeGroups(
             @RequestParam(name = "searchParam", required = false) String searchParam,
-            @RequestParam(name = "parentTenantPublicId", required = false) UUID parentTenantPublicId,
             @PageableDefault(size = 20) Pageable pageable,
             @AuthenticationPrincipal Jwt jwt) {
-        if (parentTenantPublicId == null) {
-            return PageResponse.from(
-                    privilegeGroupService.getTenantPrivilegeGroups(userPublicId(jwt), searchParam, pageable));
-        }
         return PageResponse.from(
-                privilegeGroupService.getPrivilegeGroups(searchParam, parentTenantPublicId, pageable));
+                privilegeGroupService.getTenantPrivilegeGroups(userPublicId(jwt), searchParam, pageable));
     }
 
     @GetMapping("/tenant")
@@ -60,6 +56,16 @@ public class PrivilegeGroupRestController {
             @AuthenticationPrincipal Jwt jwt) {
         return PageResponse.from(
                 privilegeGroupService.getTenantPrivilegeGroups(userPublicId(jwt), searchParam, pageable));
+    }
+
+    @GetMapping("/{groupPublicId}/privileges")
+    @Operation(summary = "List privileges attached to a privilege group")
+    public PageResponse<PrivilegeResponse> getGroupPrivileges(
+            @PathVariable UUID groupPublicId,
+            @PageableDefault(size = 50) Pageable pageable,
+            @AuthenticationPrincipal Jwt jwt) {
+        return PageResponse.from(
+                privilegeGroupService.getGroupPrivileges(groupPublicId, userPublicId(jwt), pageable));
     }
 
     @PatchMapping("/{groupPublicId}/privileges")

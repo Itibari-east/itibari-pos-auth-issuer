@@ -5,6 +5,7 @@ import com.itibari.auth.exception.ResourceNotFoundException;
 import com.itibari.auth.model.AuthUser;
 import com.itibari.auth.model.Institution;
 import com.itibari.auth.model.Privilege;
+import com.itibari.auth.model.PrivilegeGroup;
 import com.itibari.auth.model.Role;
 import com.itibari.auth.model.request.AuthUserRequest;
 import com.itibari.auth.model.request.CreateUserDTO;
@@ -16,6 +17,8 @@ import com.itibari.auth.model.response.RoleResponse;
 import com.itibari.auth.repository.AuthUserRepository;
 import com.itibari.auth.repository.InstitutionRepository;
 import com.itibari.auth.repository.RoleRepository;
+import com.itibari.auth.report.UserAccessPdfRenderer;
+import com.itibari.auth.report.UserAccessReport;
 import com.itibari.auth.service.AuthUserService;
 import com.itibari.auth.service.NotificationClient;
 import com.itibari.auth.service.PassportFileService;
@@ -55,6 +58,7 @@ public class AuthUserServiceImpl implements AuthUserService {
     private final ResetTokenService resetTokenService;
     private final NotificationClient notificationClient;
     private final PassportFileService passportFileService;
+    private final UserAccessPdfRenderer userAccessPdfRenderer;
 
     @Value("${app.password-setup.url:https://pos-dev.itibari.io/user/set-password}")
     private String passwordSetupUrl;
@@ -315,6 +319,14 @@ public class AuthUserServiceImpl implements AuthUserService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public byte[] getUserAccessReportPdf(UUID requestingUserId, UUID userId) {
+        Institution parentTenant = getParentTenantForUser(requestingUserId);
+        AuthUser user = getTenantUser(userId, parentTenant);
+        return userAccessPdfRenderer.render(toAccessReport(user, parentTenant));
+    }
+
+    @Override
     @Transactional
     public AuthUser allocateShops(UUID requestingUserId, UUID userId, ShopAllocationDTO shopAllocationDTO) {
         Institution parentTenant = getParentTenantForUser(requestingUserId);
@@ -429,6 +441,46 @@ public class AuthUserServiceImpl implements AuthUserService {
                     SECURE_RANDOM.nextInt(TEMPORARY_PASSWORD_CHARACTERS.length())));
         }
         return password.toString();
+    }
+
+    private UserAccessReport toAccessReport(AuthUser user, Institution parentTenant) {
+        List<UserAccessReport.RoleAccess> roles = Optional.ofNullable(user.getRoles()).orElseGet(Set::of).stream()
+                .sorted(Comparator.comparing(Role::getName, Comparator.nullsLast(String::compareToIgnoreCase)))
+                .map(this::toRoleAccess)
+                .toList();
+        return new UserAccessReport(
+                user.fullName(),
+                user.getEmail(),
+                user.getUsername(),
+                parentTenant.getName(),
+                FormatDate.currentNairobiDateTime(),
+                roles);
+    }
+
+    private UserAccessReport.RoleAccess toRoleAccess(Role role) {
+        List<PrivilegeGroup> groups = Optional.ofNullable(role.getPrivilegeGroupList()).orElseGet(List::of).stream()
+                .sorted(Comparator.comparing(PrivilegeGroup::getName, Comparator.nullsLast(String::compareToIgnoreCase)))
+                .toList();
+        Set<Long> groupedPrivilegeIds = groups.stream()
+                .flatMap(group -> Optional.ofNullable(group.getPrivileges()).orElseGet(Set::of).stream())
+                .map(Privilege::getId)
+                .collect(Collectors.toSet());
+        List<UserAccessReport.GroupAccess> groupAccess = groups.stream()
+                .map(group -> new UserAccessReport.GroupAccess(
+                        group.getName(),
+                        Optional.ofNullable(group.getPrivileges()).orElseGet(Set::of).stream()
+                                .map(Privilege::getName)
+                                .filter(Objects::nonNull)
+                                .sorted(String::compareToIgnoreCase)
+                                .toList()))
+                .toList();
+        List<String> extraPrivileges = Optional.ofNullable(role.getPrivilegeList()).orElseGet(List::of).stream()
+                .filter(privilege -> privilege.getId() != null && !groupedPrivilegeIds.contains(privilege.getId()))
+                .map(Privilege::getName)
+                .filter(Objects::nonNull)
+                .sorted(String::compareToIgnoreCase)
+                .toList();
+        return new UserAccessReport.RoleAccess(role.getName(), groupAccess, extraPrivileges);
     }
 
     private AuthUser requireUser(UUID publicId) {

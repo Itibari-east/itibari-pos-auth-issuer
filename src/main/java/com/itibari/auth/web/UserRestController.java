@@ -16,7 +16,10 @@ import lombok.RequiredArgsConstructor;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -200,6 +203,21 @@ public class UserRestController {
             @PathVariable UUID userId,
             @ParameterObject @PageableDefault(size = 20) Pageable pageable) {
         return PageResponse.from(authUserService.getUserPrivileges(userId, pageable));
+    }
+
+    @GetMapping(value = "/{userId}/access-report", produces = MediaType.APPLICATION_PDF_VALUE)
+    @Operation(summary = "Download a PDF of the user's roles, privilege groups, and privileges")
+    public ResponseEntity<byte[]> getUserAccessReport(
+            @PathVariable UUID userId,
+            @AuthenticationPrincipal Jwt jwt) {
+        byte[] pdf = authUserService.getUserAccessReportPdf(userPublicId(jwt), userId);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDisposition(ContentDisposition.attachment()
+                .filename("access-report.pdf")
+                .build());
+        headers.setContentLength(pdf.length);
+        return new ResponseEntity<>(pdf, headers, HttpStatus.OK);
     }
 
     @PatchMapping("/{userId}/shops")

@@ -39,4 +39,16 @@ public interface PrivilegeGroupRepository extends JpaRepository<PrivilegeGroup, 
     Page<PrivilegeGroupResponse> listGroups(@Param("searchParam") String searchParam,
                                             @Param("parentTenantPublicId") UUID parentTenantPublicId,
                                             Pageable pageable);
+
+    @Query("""
+            select new com.itibari.auth.model.response.PrivilegeGroupResponse(g.publicId, g.name)
+            from Role r
+            join r.privilegeGroupList g
+            where r.deleted = false
+              and r.publicId = :rolePublicId
+              and g.deleted = false
+            order by g.name asc
+            """)
+    Page<PrivilegeGroupResponse> listGroupsByRolePublicId(@Param("rolePublicId") UUID rolePublicId,
+                                                          Pageable pageable);
 }
