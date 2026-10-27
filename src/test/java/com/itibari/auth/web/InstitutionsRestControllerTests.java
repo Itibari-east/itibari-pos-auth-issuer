@@ -55,6 +55,7 @@ class InstitutionsRestControllerTests extends AuthIssuerApplicationTests {
                 .body(CreateProfileDTO.builder()
                         .name("Parent Shop")
                         .country("TZ")
+                        .traPin("123-456-789")
                         .city("Arusha")
                         .build())
                 .post("/institutions")
@@ -80,7 +81,7 @@ class InstitutionsRestControllerTests extends AuthIssuerApplicationTests {
         given()
                 .auth().oauth2(ownerToken)
                 .contentType(ContentType.JSON)
-                .body(new CreateChildShopDTO("Child Branch", "TZ", null, null, "TZS", "Moshi"))
+                .body(new CreateChildShopDTO("Child Branch", "TZ", "999-000-111", null, "TZS", "Moshi"))
                 .post("/institutions/{parentTenantId}/childShop", parentPublicId)
                 .then().log().all()
                 .statusCode(200)
@@ -98,6 +99,7 @@ class InstitutionsRestControllerTests extends AuthIssuerApplicationTests {
                 .get("/institutions/myShops")
                 .then()
                 .statusCode(200)
+                .body("find { it.name == 'Child Branch' }.traPin", equalTo("123-456-789"))
                 .extract()
                 .path("find { it.name == 'Child Branch' }.publicId");
 
