@@ -150,7 +150,7 @@ public class InstitutionServiceImpl implements InstitutionService {
                 .parent(parent)
                 .parentTenant(false)
                 .country(dto.country())
-                .traPin(dto.traPin())
+                .traPin(parent.getTraPin())
                 .timeZone(dto.timeZone())
                 .baseCurrency(dto.baseCurrency())
                 .city(dto.city())
