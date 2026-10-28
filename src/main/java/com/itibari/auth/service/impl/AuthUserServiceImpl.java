@@ -120,7 +120,7 @@ public class AuthUserServiceImpl implements AuthUserService {
     @Override
     @Transactional
     public AuthUser createTenantUser(UUID requestingUserId, TenantUserRequest request) {
-        Institution parentTenant = getParentTenantForUser(requestingUserId);
+        Institution parentTenant = parentTenantForChildUser(requestingUserId);
         String email = request.email().trim().toLowerCase(Locale.ROOT);
         String phone = FormatPhone.myPhoneNumber(request.phone());
 
@@ -403,6 +403,35 @@ public class AuthUserServiceImpl implements AuthUserService {
                 .filter(shop -> !shop.isDeleted() && shop.isParentTenant())
                 .findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("Parent shop"));
+    }
+
+    private Institution parentTenantForChildUser(UUID userPublicId) {
+        AuthUser user = requireUser(userPublicId);
+        Optional<Institution> allocatedParent = user.getInstitutions().stream()
+                .filter(shop -> !shop.isDeleted() && shop.isParentTenant())
+                .findFirst();
+        if (allocatedParent.isPresent()) {
+            return allocatedParent.get();
+        }
+
+        // One step from the caller's branch. More than one company fails closed.
+        Set<UUID> parentIds = new LinkedHashSet<>();
+        Institution parent = null;
+        for (Institution shop : user.getInstitutions()) {
+            if (shop.isDeleted()) {
+                continue;
+            }
+            Institution candidate = shop.getParent();
+            if (candidate == null || candidate.isDeleted() || !candidate.isParentTenant()) {
+                continue;
+            }
+            parentIds.add(candidate.getPublicId());
+            parent = candidate;
+        }
+        if (parentIds.size() != 1) {
+            throw new ResourceNotFoundException("Parent shop");
+        }
+        return parent;
     }
 
     private AuthUser getTenantUser(UUID userId, Institution parentTenant) {

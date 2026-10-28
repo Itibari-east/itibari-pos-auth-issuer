@@ -2,22 +2,27 @@ package com.itibari.auth.web;
 
 import com.itibari.auth.AuthIssuerApplicationTests;
 import com.itibari.auth.model.AuthUser;
+import com.itibari.auth.model.Institution;
 import com.itibari.auth.model.LoginRequest;
 import com.itibari.auth.model.Role;
 import com.itibari.auth.model.request.AuthUserRequest;
 import com.itibari.auth.model.request.CreateUserDTO;
 import com.itibari.auth.model.request.UserRoleDto;
+import com.itibari.auth.repository.InstitutionRepository;
 import com.itibari.auth.validation.StrongPassword;
 import com.lowagie.text.pdf.PdfReader;
 import com.lowagie.text.pdf.parser.PdfTextExtractor;
 import io.restassured.http.ContentType;
+import io.restassured.response.ValidatableResponse;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
@@ -27,6 +32,9 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 class UserRestControllerTests extends AuthIssuerApplicationTests {
+
+    @Autowired
+    private InstitutionRepository institutionRepository;
 
     @Test
     void createUserWorks() {
@@ -253,5 +261,168 @@ class UserRestControllerTests extends AuthIssuerApplicationTests {
         } finally {
             reader.close();
         }
+    }
+
+    @Test
+    void parentShopCallerCanCreateChildUser() {
+        String email = uniqueEmail("parent-caller");
+        Institution parent = saveParent("Parent Shop");
+        Institution branch = saveBranch("Child Branch", parent);
+        Role role = saveRole("Cashier", parent.getPublicId());
+        callerOn(email, parent);
+        String token = login(email, "password123");
+
+        postChildUser(token, role.getPublicId(), branch.getPublicId(), uniqueEmail("child"))
+                .statusCode(201)
+                .body("message", equalTo("User created successfully"))
+                .body("identity", equalTo("Ada Lovelace"))
+                .body("publicId", notNullValue());
+    }
+
+    @Test
+    void branchCallerCanCreateChildUser() {
+        String email = uniqueEmail("branch-caller");
+        Institution parent = saveParent("Parent Shop");
+        Institution branch = saveBranch("Child Branch", parent);
+        Role role = saveRole("Cashier", parent.getPublicId());
+        callerOn(email, branch);
+        String token = login(email, "password123");
+
+        postChildUser(token, role.getPublicId(), branch.getPublicId(), uniqueEmail("child"))
+                .statusCode(201)
+                .body("message", equalTo("User created successfully"))
+                .body("identity", equalTo("Ada Lovelace"))
+                .body("publicId", notNullValue());
+    }
+
+    @Test
+    void branchCallerRejectsRoleFromAnotherCompany() {
+        String email = uniqueEmail("foreign-role");
+        Institution parent = saveParent("Parent Shop");
+        Institution branch = saveBranch("Child Branch", parent);
+        Institution other = saveParent("Other Shop");
+        Role foreignRole = saveRole("Foreign", other.getPublicId());
+        callerOn(email, branch);
+        String token = login(email, "password123");
+
+        postChildUser(token, foreignRole.getPublicId(), branch.getPublicId(), uniqueEmail("child"))
+                .statusCode(404)
+                .body("detail", equalTo("Role not found"));
+    }
+
+    @Test
+    void branchCallerRejectsShopUnderAnotherParent() {
+        String email = uniqueEmail("foreign-shop");
+        Institution parent = saveParent("Parent Shop");
+        Institution branch = saveBranch("Child Branch", parent);
+        Institution other = saveParent("Other Shop");
+        Institution otherBranch = saveBranch("Other Branch", other);
+        Role role = saveRole("Cashier", parent.getPublicId());
+        callerOn(email, branch);
+        String token = login(email, "password123");
+
+        postChildUser(token, role.getPublicId(), otherBranch.getPublicId(), uniqueEmail("child"))
+                .statusCode(404)
+                .body("detail", equalTo("Shop not found"));
+    }
+
+    @Test
+    void callerWithoutShopCannotCreateChildUser() {
+        String email = uniqueEmail("no-shop");
+        saveUser(email, "password123");
+        String token = login(email, "password123");
+
+        postChildUser(token, UUID.randomUUID(), UUID.randomUUID(), uniqueEmail("child"))
+                .statusCode(404)
+                .body("detail", equalTo("Parent shop not found"));
+    }
+
+    @Test
+    void callerOnTwoCompaniesCannotCreateChildUser() {
+        String email = uniqueEmail("two-parents");
+        Institution firstBranch = saveBranch("First Branch", saveParent("First Shop"));
+        Institution secondBranch = saveBranch("Second Branch", saveParent("Second Shop"));
+        callerOn(email, firstBranch, secondBranch);
+        String token = login(email, "password123");
+
+        postChildUser(token, UUID.randomUUID(), UUID.randomUUID(), uniqueEmail("child"))
+                .statusCode(404)
+                .body("detail", equalTo("Parent shop not found"));
+    }
+
+    @Test
+    void branchCallerStillCannotListUsersOrRoles() {
+        String email = uniqueEmail("branch-list");
+        Institution branch = saveBranch("Child Branch", saveParent("Parent Shop"));
+        callerOn(email, branch);
+        String token = login(email, "password123");
+
+        given()
+                .auth().oauth2(token)
+                .get("/users/childUser")
+                .then()
+                .statusCode(404)
+                .body("detail", equalTo("Parent shop not found"));
+        given()
+                .auth().oauth2(token)
+                .get("/roles")
+                .then()
+                .statusCode(404)
+                .body("detail", equalTo("Parent shop not found"));
+    }
+
+    @Test
+    void createChildUserRequiresBearerToken() {
+        given()
+                .contentType(ContentType.JSON)
+                .body(childUserBody(UUID.randomUUID(), UUID.randomUUID(), uniqueEmail("anon")))
+                .post("/users/childUser")
+                .then()
+                .statusCode(401);
+    }
+
+    private Institution saveParent(String name) {
+        return institutionRepository.save(Institution.builder()
+                .name(name)
+                .identityNumber(UUID.randomUUID().toString())
+                .parentTenant(true)
+                .build());
+    }
+
+    private Institution saveBranch(String name, Institution parent) {
+        return institutionRepository.save(Institution.builder()
+                .name(name)
+                .identityNumber(UUID.randomUUID().toString())
+                .parent(parent)
+                .build());
+    }
+
+    private void callerOn(String email, Institution... shops) {
+        AuthUser caller = saveUser(email, "password123");
+        caller.getInstitutions().addAll(List.of(shops));
+        authUserRepository.save(caller);
+    }
+
+    private ValidatableResponse postChildUser(String token, UUID roleId, UUID branchId, String email) {
+        return given()
+                .auth().oauth2(token)
+                .contentType(ContentType.JSON)
+                .body(childUserBody(roleId, branchId, email))
+                .post("/users/childUser")
+                .then();
+    }
+
+    private Map<String, Object> childUserBody(UUID roleId, UUID branchId, String email) {
+        return Map.of(
+                "firstName", "Ada",
+                "lastName", "Lovelace",
+                "role", List.of(roleId),
+                "branch", List.of(branchId),
+                "phone", uniquePhone(),
+                "email", email);
+    }
+
+    private String uniquePhone() {
+        return "06" + String.format("%08d", ThreadLocalRandom.current().nextInt(100_000_000));
     }
 }
