@@ -563,4 +563,28 @@
                              columnNames="reset_password_token_lookup_hash"
                              constraintName="auth_users_reset_token_lookup_hash_key"/>
     </changeSet>
+
+    <changeSet id="20261028 18:00" author="Thiaine">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="counties" schemaName="pos_core"/>
+            <not>
+                <columnExists tableName="counties" columnName="iso_alpha_two" schemaName="pos_core"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="counties" schemaName="pos_core">
+            <column name="iso_alpha_two" type="varchar(255)"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="20261028 18:01" author="Thiaine">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="counties" schemaName="pos_core"/>
+            <not>
+                <columnExists tableName="counties" columnName="currency_code" schemaName="pos_core"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="counties" schemaName="pos_core">
+            <column name="currency_code" type="varchar(255)"/>
+        </addColumn>
+    </changeSet>
 </databaseChangeLog>
