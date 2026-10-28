@@ -53,6 +53,12 @@ public abstract class AuthIssuerApplicationTests {
     protected JdbcTemplate jdbcTemplate;
 
     @MockitoBean
+    protected com.itibari.auth.client.licensing.LicensingFeignClient licensing;
+
+    @Autowired
+    protected SubscriptionRemoteFixture subscriptionFixture;
+
+    @MockitoBean
     protected FileFeignClient fileFeignClient;
 
     @Autowired
@@ -63,6 +69,12 @@ public abstract class AuthIssuerApplicationTests {
         RestAssured.baseURI = "http://localhost";
         RestAssured.port = port;
         clearAuthData();
+        org.mockito.Mockito.doAnswer(invocation -> {
+            var authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+            var jwt = (org.springframework.security.oauth2.jwt.Jwt) authentication.getPrincipal();
+            subscriptionFixture.startTrial(UUID.fromString(jwt.getClaimAsString("public_id")), invocation.getArgument(0));
+            return null;
+        }).when(licensing).startTrial(org.mockito.ArgumentMatchers.any());
     }
 
     protected void clearAuthData() {
