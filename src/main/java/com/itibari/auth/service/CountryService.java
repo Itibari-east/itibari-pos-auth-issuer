@@ -11,4 +11,9 @@ public interface CountryService {
     Page<CountryResponse> getCountries(String searchParam, Pageable pageable);
 
     CountryResponse getCountry(UUID publicId);
+
+    EnsuredCountry ensureCountry(String isoAlpha);
+
+    record EnsuredCountry(CountryResponse country, boolean created) {
+    }
 }

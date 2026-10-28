@@ -67,4 +67,19 @@ public final class Examples {
 
     public static final String CHANGE_PASSWORD_RESPONSE =
             "{\"message\":\"You have successfully changed your password\"}";
+
+    public static final String CREATE_COUNTRY_REQUEST =
+            "{\"isoAlpha\":\"KEN\"}";
+
+    public static final String COUNTRY_TANZANIA_HIT =
+            "{\"publicId\":\"3b7c1e5a-8d24-4f91-9a6e-2c5d8f0a1b23\",\"name\":\"Tanzania\",\"isoAlpha\":\"TZA\",\"countryCode\":\"+255\",\"isoAlphaTwo\":\"TZ\",\"currencyCode\":\"TZS\"}";
+
+    public static final String COUNTRY_GERMANY_HIT =
+            "{\"publicId\":null,\"name\":\"Germany\",\"isoAlpha\":\"DEU\",\"countryCode\":\"+49\",\"isoAlphaTwo\":\"DE\",\"currencyCode\":\"EUR\"}";
+
+    public static final String COUNTRY_GERMANY_CREATED =
+            "{\"publicId\":\"8e2a4c6b-1f03-4d85-a7c9-0b1d2e3f4a56\",\"name\":\"Germany\",\"isoAlpha\":\"DEU\",\"countryCode\":\"+49\",\"isoAlphaTwo\":\"DE\",\"currencyCode\":\"EUR\"}";
+
+    public static final String CURRENCY_TZS_HIT =
+            "{\"code\":\"TZS\",\"name\":\"Tanzanian Shilling\",\"fractionDigits\":2}";
 }
