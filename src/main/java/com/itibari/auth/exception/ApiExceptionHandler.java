@@ -22,6 +22,11 @@ public class ApiExceptionHandler {
         return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 
+    @ExceptionHandler(ConflictException.class)
+    public ProblemDetail conflict(ConflictException ex) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
     @ExceptionHandler({BadRequestException.class, MethodArgumentNotValidException.class})
     public ProblemDetail badRequest(Exception ex) {
         if (ex instanceof MethodArgumentNotValidException manv) {

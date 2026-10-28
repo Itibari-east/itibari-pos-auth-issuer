@@ -1,8 +1,12 @@
 package com.itibari.auth.web;
 
+import com.itibari.auth.doc.Examples;
 import com.itibari.auth.model.response.CountryResponse;
 import com.itibari.auth.service.CountryService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -25,7 +29,11 @@ public class InternalCountryRestController {
     private final CountryService countryService;
 
     @GetMapping("/{publicId}")
-    @Operation(summary = "Look up a country by public id")
+    @Operation(summary = "Look up a country by public id", responses = {
+            @ApiResponse(responseCode = "200", description = "OK", content = @Content(
+                    mediaType = "application/json",
+                    examples = @ExampleObject(name = "Tanzania live row", value = Examples.COUNTRY_TANZANIA_HIT)))
+    })
     public ResponseEntity<CountryResponse> getCountry(@PathVariable UUID publicId) {
         return ResponseEntity.ok(countryService.getCountry(publicId));
     }

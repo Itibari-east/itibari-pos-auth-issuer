@@ -83,6 +83,7 @@ public abstract class AuthIssuerApplicationTests {
         jdbcTemplate.execute("DELETE FROM pos_core.institutions");
         jdbcTemplate.execute("DELETE FROM pos_core.notification_preferences");
         jdbcTemplate.execute("DELETE FROM pos_core.auth_users");
+        jdbcTemplate.execute("DELETE FROM pos_core.counties");
         // keep seeded subscription catalog plans
         accessCatalogService.seedGlobalCatalog();
     }
