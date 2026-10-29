@@ -47,3 +47,8 @@ and child-shop access. Subscription operations return 503 when licensing is unav
 The legacy paid-subscription update route cannot activate a paid plan: use the
 payment initiation and reconciliation endpoints. For a trial, send `freeTrial=true`
 or use `/institutions/subscriptions/{subscriptionId}/free-trial`.
+
+## Service messaging
+
+See [RABBITMQ.md](RABBITMQ.md) for the event routes, request/reply operations,
+Java catalog extension pattern, migrations, reliability limits, and rollout order.

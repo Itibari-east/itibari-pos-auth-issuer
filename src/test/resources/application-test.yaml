@@ -40,3 +40,7 @@ security:
 vodampesa:
   enabled: false
   auto-initialize: false
+
+messaging:
+  rabbitmq:
+    enabled: false
