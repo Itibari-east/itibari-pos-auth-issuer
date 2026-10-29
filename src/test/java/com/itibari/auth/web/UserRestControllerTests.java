@@ -22,8 +22,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ThreadLocalRandom;
-
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -372,6 +370,75 @@ class UserRestControllerTests extends AuthIssuerApplicationTests {
     }
 
     @Test
+    void childUserStoresKenyanPhoneUnchanged() {
+        String email = uniqueEmail("parent-ke");
+        Institution parent = saveParent("Parent Shop");
+        Institution branch = saveBranch("Child Branch", parent);
+        Role role = saveRole("Cashier", parent.getPublicId());
+        callerOn(email, parent);
+        String token = login(email, "password123");
+        String childEmail = uniqueEmail("child-ke");
+        String phone = "+254712345678";
+
+        given()
+                .auth().oauth2(token)
+                .contentType(ContentType.JSON)
+                .body(childUserBody(role.getPublicId(), branch.getPublicId(), childEmail, phone))
+                .post("/users/childUser")
+                .then()
+                .statusCode(201);
+
+        AuthUser created = authUserRepository.findByEmailIgnoreCaseAndDeletedFalse(childEmail).orElseThrow();
+        org.junit.jupiter.api.Assertions.assertEquals(phone, created.getPhoneNumber());
+    }
+
+    @Test
+    void childUserStoresTanzanianPhoneUnchanged() {
+        String email = uniqueEmail("parent-tz");
+        Institution parent = saveParent("Parent Shop");
+        Institution branch = saveBranch("Child Branch", parent);
+        Role role = saveRole("Cashier", parent.getPublicId());
+        callerOn(email, parent);
+        String token = login(email, "password123");
+        String childEmail = uniqueEmail("child-tz");
+        String phone = "+255712345678";
+
+        given()
+                .auth().oauth2(token)
+                .contentType(ContentType.JSON)
+                .body(childUserBody(role.getPublicId(), branch.getPublicId(), childEmail, phone))
+                .post("/users/childUser")
+                .then()
+                .statusCode(201);
+
+        AuthUser created = authUserRepository.findByEmailIgnoreCaseAndDeletedFalse(childEmail).orElseThrow();
+        org.junit.jupiter.api.Assertions.assertEquals(phone, created.getPhoneNumber());
+    }
+
+    @Test
+    void childUserRejectsImpossiblePhoneLength() {
+        String email = uniqueEmail("parent-bad-phone");
+        Institution parent = saveParent("Parent Shop");
+        Institution branch = saveBranch("Child Branch", parent);
+        Role role = saveRole("Cashier", parent.getPublicId());
+        callerOn(email, parent);
+        String token = login(email, "password123");
+        String childEmail = uniqueEmail("child-bad");
+
+        given()
+                .auth().oauth2(token)
+                .contentType(ContentType.JSON)
+                .body(childUserBody(role.getPublicId(), branch.getPublicId(), childEmail, "+2541"))
+                .post("/users/childUser")
+                .then()
+                .statusCode(400)
+                .body("detail", equalTo("Invalid phone number"));
+
+        org.junit.jupiter.api.Assertions.assertTrue(
+                authUserRepository.findByEmailIgnoreCaseAndDeletedFalse(childEmail).isEmpty());
+    }
+
+    @Test
     void createChildUserRequiresBearerToken() {
         given()
                 .contentType(ContentType.JSON)
@@ -413,16 +480,16 @@ class UserRestControllerTests extends AuthIssuerApplicationTests {
     }
 
     private Map<String, Object> childUserBody(UUID roleId, UUID branchId, String email) {
+        return childUserBody(roleId, branchId, email, nextE164Phone());
+    }
+
+    private Map<String, Object> childUserBody(UUID roleId, UUID branchId, String email, String phone) {
         return Map.of(
                 "firstName", "Ada",
                 "lastName", "Lovelace",
                 "role", List.of(roleId),
                 "branch", List.of(branchId),
-                "phone", uniquePhone(),
+                "phone", phone,
                 "email", email);
-    }
-
-    private String uniquePhone() {
-        return "06" + String.format("%08d", ThreadLocalRandom.current().nextInt(100_000_000));
     }
 }

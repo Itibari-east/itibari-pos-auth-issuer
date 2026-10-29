@@ -44,6 +44,23 @@ class LoginRestControllerTests extends AuthIssuerApplicationTests {
     private NotificationClient notificationClient;
 
     @Test
+    void loginWithFullStoredPhoneNumberSucceeds() {
+        String phone = "+255712345678";
+        String email = uniqueEmail("phone-login");
+        AuthUser user = saveUser(email, "password123");
+        user.setPhoneNumber(phone);
+        authUserRepository.save(user);
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(new LoginRequest(phone, "password123"))
+                .post("/login")
+                .then()
+                .statusCode(200)
+                .body("accessToken", not(blankOrNullString()));
+    }
+
+    @Test
     void loginShouldReturnAccessToken() {
         String email = uniqueEmail("login");
         saveUser(email, "password123");
