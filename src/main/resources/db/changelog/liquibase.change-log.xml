@@ -563,4 +563,6 @@
                              columnNames="reset_password_token_lookup_hash"
                              constraintName="auth_users_reset_token_lookup_hash_key"/>
     </changeSet>
+    <include file="db/changelog/rabbit-rpc.xml"/>
+    <include file="db/changelog/rabbit-messaging.xml"/>
 </databaseChangeLog>

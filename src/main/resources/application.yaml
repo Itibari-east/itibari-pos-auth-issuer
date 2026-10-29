@@ -1,4 +1,25 @@
 spring:
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    username: ${SPRING_RABBITMQ_USERNAME:guest}
+    password: ${SPRING_RABBITMQ_PASSWORD:guest}
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
+      reply-timeout: 30s
+    listener:
+      simple:
+        prefetch: 1
+        concurrency: 1
+        max-concurrency: 1
+        default-requeue-rejected: false
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 1000ms
+          multiplier: 2
   application:
     name: authorization-service
   cloud:
@@ -82,3 +103,7 @@ logging:
   level:
     org.springframework.security: INFO
     com.itibari.auth: DEBUG
+
+messaging:
+  rabbitmq:
+    enabled: ${MESSAGING_RABBITMQ_ENABLED:true}

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+ <changeSet id="pos_core-rabbit-rpc-v1" author="itibari">
+  <createTable schemaName="pos_core" tableName="rabbit_rpc_lock"><column name="id" type="int"><constraints primaryKey="true"/></column></createTable>
+  <insert schemaName="pos_core" tableName="rabbit_rpc_lock"><column name="id" valueNumeric="1"/></insert>
+  <createTable schemaName="pos_core" tableName="rabbit_rpc_results">
+   <column name="request_id" type="uuid"><constraints primaryKey="true" nullable="false"/></column>
+   <column name="fingerprint" type="varchar(64)"><constraints nullable="false"/></column>
+   <column name="response" type="text"><constraints nullable="false"/></column>
+   <column name="created_at" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP"/>
+  </createTable>
+ </changeSet>
+</databaseChangeLog>

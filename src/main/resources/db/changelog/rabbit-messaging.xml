@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+<changeSet id="pos_core-rabbit-messaging-v1" author="itibari">
+ <createTable schemaName="pos_core" tableName="rabbit_outbox">
+  <column name="id" type="bigint" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+  <column name="event_id" type="uuid"><constraints unique="true" nullable="false"/></column>
+  <column name="exchange_name" type="varchar(255)"><constraints nullable="false"/></column>
+  <column name="routing_key" type="varchar(255)"><constraints nullable="false"/></column>
+  <column name="payload" type="text"><constraints nullable="false"/></column>
+  <column name="published_at" type="timestamp"/>
+ </createTable>
+ <createIndex schemaName="pos_core" tableName="rabbit_outbox" indexName="idx_rabbit_outbox_pending"><column name="published_at"/><column name="id"/></createIndex>
+ <createTable schemaName="pos_core" tableName="rabbit_dispatch_lock"><column name="id" type="int"><constraints primaryKey="true"/></column></createTable>
+ <insert schemaName="pos_core" tableName="rabbit_dispatch_lock"><column name="id" valueNumeric="1"/></insert>
+</changeSet>
+</databaseChangeLog>
