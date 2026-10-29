@@ -25,7 +25,7 @@ import com.itibari.auth.service.PassportFileService;
 import com.itibari.auth.service.ResetTokenService;
 import com.itibari.auth.service.components.email.EmailBodyCrafter;
 import com.itibari.auth.util.date.FormatDate;
-import com.itibari.auth.util.phone.FormatPhone;
+import com.itibari.auth.util.phone.InternationalPhone;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
@@ -70,7 +70,7 @@ public class AuthUserServiceImpl implements AuthUserService {
             throw new BadRequestException("Password and confirm password do not match");
         }
         String email = dto.contactEmail().trim().toLowerCase();
-        String phone = FormatPhone.myPhoneNumber(dto.contactPhoneNumber());
+        String phone = InternationalPhone.toE164(dto.contactPhoneNumber());
 
         if (authUserRepository.findByEmailIgnoreCaseAndDeletedFalse(email).isPresent()) {
             throw new BadRequestException("Email already taken");
@@ -120,9 +120,9 @@ public class AuthUserServiceImpl implements AuthUserService {
     @Override
     @Transactional
     public AuthUser createTenantUser(UUID requestingUserId, TenantUserRequest request) {
-        Institution parentTenant = getParentTenantForUser(requestingUserId);
+        Institution parentTenant = parentTenantForChildUser(requestingUserId);
         String email = request.email().trim().toLowerCase(Locale.ROOT);
-        String phone = FormatPhone.myPhoneNumber(request.phone());
+        String phone = InternationalPhone.toE164(request.phone());
 
         if (authUserRepository.findByEmailIgnoreCaseAndDeletedFalse(email).isPresent()) {
             throw new BadRequestException("Email already taken");
@@ -220,7 +220,7 @@ public class AuthUserServiceImpl implements AuthUserService {
     public AuthUserResponse updateUser(UUID userId, AuthUserRequest request) {
         AuthUser user = requireUser(userId);
         String email = request.email().trim().toLowerCase();
-        String phone = FormatPhone.myPhoneNumber(request.phoneNumber());
+        String phone = InternationalPhone.toE164(request.phoneNumber());
 
         authUserRepository.findByEmailIgnoreCaseAndDeletedFalse(email)
                 .filter(existing -> !existing.getId().equals(user.getId()))
@@ -403,6 +403,35 @@ public class AuthUserServiceImpl implements AuthUserService {
                 .filter(shop -> !shop.isDeleted() && shop.isParentTenant())
                 .findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("Parent shop"));
+    }
+
+    private Institution parentTenantForChildUser(UUID userPublicId) {
+        AuthUser user = requireUser(userPublicId);
+        Optional<Institution> allocatedParent = user.getInstitutions().stream()
+                .filter(shop -> !shop.isDeleted() && shop.isParentTenant())
+                .findFirst();
+        if (allocatedParent.isPresent()) {
+            return allocatedParent.get();
+        }
+
+        // One step from the caller's branch. More than one company fails closed.
+        Set<UUID> parentIds = new LinkedHashSet<>();
+        Institution parent = null;
+        for (Institution shop : user.getInstitutions()) {
+            if (shop.isDeleted()) {
+                continue;
+            }
+            Institution candidate = shop.getParent();
+            if (candidate == null || candidate.isDeleted() || !candidate.isParentTenant()) {
+                continue;
+            }
+            parentIds.add(candidate.getPublicId());
+            parent = candidate;
+        }
+        if (parentIds.size() != 1) {
+            throw new ResourceNotFoundException("Parent shop");
+        }
+        return parent;
     }
 
     private AuthUser getTenantUser(UUID userId, Institution parentTenant) {

@@ -95,19 +95,19 @@ public abstract class AuthIssuerApplicationTests {
         jdbcTemplate.execute("DELETE FROM pos_core.institutions");
         jdbcTemplate.execute("DELETE FROM pos_core.notification_preferences");
         jdbcTemplate.execute("DELETE FROM pos_core.auth_users");
+        jdbcTemplate.execute("DELETE FROM pos_core.counties");
         // keep seeded subscription catalog plans
         accessCatalogService.seedGlobalCatalog();
     }
 
     protected AuthUser saveUser(String email, String rawPassword) {
-        String digits = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
         return authUserRepository.save(AuthUser.builder()
                 .username(email)
                 .email(email)
                 .password(passwordEncoder.encode(rawPassword))
                 .firstName("Test")
                 .lastName("User")
-                .phoneNumber("+2557" + digits)
+                .phoneNumber(nextE164Phone())
                 .enabled(true)
                 .activeStatus(true)
                 .accountNonExpired(true)
@@ -170,5 +170,10 @@ public abstract class AuthIssuerApplicationTests {
 
     protected String uniqueEmail(String prefix) {
         return prefix + "-" + UUID.randomUUID() + "@example.com";
+    }
+
+    protected String nextE164Phone() {
+        long suffix = Math.abs(UUID.randomUUID().getMostSignificantBits() % 100_000_000L);
+        return "+2557" + String.format("%08d", suffix);
     }
 }

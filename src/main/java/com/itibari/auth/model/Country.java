@@ -26,6 +26,12 @@ public class Country extends BaseEntity {
     @Column(name = "iso_alpha_three", nullable = false)
     private String isoAlphaThree;
 
+    @Column(name = "iso_alpha_two")
+    private String isoAlphaTwo;
+
+    @Column(name = "currency_code")
+    private String currencyCode;
+
     @Column(name = "phone_code", nullable = false)
     private String phoneCode;
 }

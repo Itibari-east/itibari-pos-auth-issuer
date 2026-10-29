@@ -31,7 +31,9 @@ public class CountryRepositoryCustomizedImpl implements CountryRepositoryCustomi
                         root.get("publicId"),
                         root.get("name"),
                         root.get("isoAlphaThree"),
-                        root.get("phoneCode")))
+                        root.get("phoneCode"),
+                        root.get("isoAlphaTwo"),
+                        root.get("currencyCode")))
                 .where(filters(criteriaBuilder, root, searchParam))
                 .orderBy(criteriaBuilder.asc(root.get("name")));
 

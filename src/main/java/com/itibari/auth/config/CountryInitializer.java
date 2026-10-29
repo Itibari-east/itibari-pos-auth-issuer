@@ -2,17 +2,13 @@ package com.itibari.auth.config;
 
 import com.itibari.auth.model.Country;
 import com.itibari.auth.repository.CountryRepository;
+import com.itibari.auth.service.CountryCodes;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 
 @Slf4j
 @Component
@@ -23,47 +19,46 @@ public class CountryInitializer implements ApplicationRunner {
 
     @Override
     @Transactional
-    public void run(ApplicationArguments args) throws Exception {
-        ClassPathResource resource = new ClassPathResource("country.csv");
-        if (!resource.exists()) {
-            log.warn("country.csv not found on classpath; skipping country seed");
-            return;
-        }
-        int upserted = 0;
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8))) {
-            String line;
-            boolean header = true;
-            while ((line = reader.readLine()) != null) {
-                if (line.isBlank()) {
-                    continue;
-                }
-                if (header) {
-                    header = false;
-                    continue;
-                }
-                String[] parts = line.split(";", -1);
-                if (parts.length < 3) {
-                    throw new IllegalStateException("Invalid country.csv row: " + line);
-                }
-                String name = parts[0].trim();
-                String iso = parts[1].trim().toUpperCase();
-                String phone = parts[2].trim();
-                if (name.isBlank() || iso.isBlank() || phone.isBlank()) {
-                    throw new IllegalStateException("Country CSV rows require name, ISO alpha-3, and phone code");
-                }
-                if (!phone.startsWith("+")) {
-                    phone = "+" + phone;
-                }
-                Country country = countryRepository.findByIsoAlphaThreeIgnoreCaseAndDeletedIsFalse(iso)
-                        .orElseGet(Country::new);
-                country.setName(name);
-                country.setIsoAlphaThree(iso);
-                country.setPhoneCode(phone);
+    public void run(ApplicationArguments args) {
+        int filled = 0;
+        for (Country country : countryRepository.findAll()) {
+            if (country.isDeleted()) {
+                continue;
+            }
+            if (fillEmptyCodes(country)) {
                 countryRepository.save(country);
-                upserted++;
+                filled++;
             }
         }
-        log.info("Seeded/updated {} countries from country.csv", upserted);
+        if (filled > 0) {
+            log.info("Filled empty alpha-2 or currency on {} countries", filled);
+        }
+    }
+
+    private static boolean fillEmptyCodes(Country country) {
+        boolean changed = false;
+        if (blank(country.getIsoAlphaTwo())) {
+            String alphaTwo = CountryCodes.alphaTwo(country.getIsoAlphaThree());
+            if (alphaTwo != null) {
+                country.setIsoAlphaTwo(alphaTwo);
+                changed = true;
+            } else if (!blank(country.getIsoAlphaThree())) {
+                log.warn("No alpha-2 for country {} ({})", country.getPublicId(), country.getIsoAlphaThree());
+            }
+        }
+        if (blank(country.getCurrencyCode())) {
+            String currency = CountryCodes.currency(country.getIsoAlphaTwo());
+            if (currency != null) {
+                country.setCurrencyCode(currency);
+                changed = true;
+            } else if (!blank(country.getIsoAlphaTwo())) {
+                log.warn("No currency for country {} ({})", country.getPublicId(), country.getIsoAlphaTwo());
+            }
+        }
+        return changed;
+    }
+
+    private static boolean blank(String value) {
+        return value == null || value.isBlank();
     }
 }
