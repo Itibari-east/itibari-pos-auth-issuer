@@ -16,6 +16,16 @@ import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+    @ExceptionHandler(feign.FeignException.class)
+    public ProblemDetail licensingUnavailable(feign.FeignException ex) {
+        int status = ex.status();
+        if (status == 400 || status == 401 || status == 403 || status == 404 || status == 409) {
+            return ProblemDetail.forStatusAndDetail(org.springframework.http.HttpStatusCode.valueOf(status),
+                    "Licensing request rejected");
+        }
+        return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, "Licensing service unavailable");
+    }
+
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ProblemDetail notFound(ResourceNotFoundException ex) {

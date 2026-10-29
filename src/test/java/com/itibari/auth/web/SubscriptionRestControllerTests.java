@@ -24,6 +24,13 @@ class SubscriptionRestControllerTests extends AuthIssuerApplicationTests {
         String email = uniqueEmail("sub-list");
         saveUser(email, "password123");
         String token = login(email, "password123");
+        org.mockito.Mockito.when(licensing.plans(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyInt(),
+                org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyList()))
+            .thenReturn(new com.itibari.auth.model.response.PageResponse<>(1, 1, 1, true, true, 0,
+                java.util.List.of(com.itibari.auth.model.response.SubscriptionResponse.builder()
+                    .name("Single Shop Subscription").build())));
+        org.mockito.Mockito.when(licensing.create(org.mockito.ArgumentMatchers.any()))
+            .thenReturn(new com.itibari.auth.model.response.CustomResponse("success", SubscriptionType.Single_Shop.getLabel()));
 
         given()
                 .auth().oauth2(token)
@@ -39,6 +46,13 @@ class SubscriptionRestControllerTests extends AuthIssuerApplicationTests {
         String email = uniqueEmail("sub-create");
         saveUser(email, "password123");
         String token = login(email, "password123");
+        org.mockito.Mockito.when(licensing.plans(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyInt(),
+                org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyList()))
+            .thenReturn(new com.itibari.auth.model.response.PageResponse<>(1, 1, 1, true, true, 0,
+                java.util.List.of(com.itibari.auth.model.response.SubscriptionResponse.builder()
+                    .name("Single Shop Subscription").build())));
+        org.mockito.Mockito.when(licensing.create(org.mockito.ArgumentMatchers.any()))
+            .thenReturn(new com.itibari.auth.model.response.CustomResponse("success", SubscriptionType.Single_Shop.getLabel()));
 
         given()
                 .auth().oauth2(token)
@@ -62,6 +76,13 @@ class SubscriptionRestControllerTests extends AuthIssuerApplicationTests {
         String email = uniqueEmail("trial");
         saveUser(email, "password123");
         String token = login(email, "password123");
+        org.mockito.Mockito.when(licensing.plans(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyInt(),
+                org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyList()))
+            .thenReturn(new com.itibari.auth.model.response.PageResponse<>(1, 1, 1, true, true, 0,
+                java.util.List.of(com.itibari.auth.model.response.SubscriptionResponse.builder()
+                    .name("Single Shop Subscription").build())));
+        org.mockito.Mockito.when(licensing.create(org.mockito.ArgumentMatchers.any()))
+            .thenReturn(new com.itibari.auth.model.response.CustomResponse("success", SubscriptionType.Single_Shop.getLabel()));
 
         given()
                 .auth().oauth2(token)

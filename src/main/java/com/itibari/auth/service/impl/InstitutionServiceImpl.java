@@ -21,7 +21,7 @@ import com.itibari.auth.repository.NotificationPreferenceRepository;
 import com.itibari.auth.repository.ShopSubscriptionDetailRepository;
 import com.itibari.auth.service.AccessCatalogService;
 import com.itibari.auth.service.InstitutionService;
-import com.itibari.auth.service.SubscriptionAccessService;
+import com.itibari.auth.client.licensing.LicensingFeignClient;
 import com.itibari.auth.util.date.FormatDate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -42,7 +42,7 @@ public class InstitutionServiceImpl implements InstitutionService {
     private final AuthUserRepository authUserRepository;
     private final NotificationPreferenceRepository notificationPreferenceRepository;
     private final ShopSubscriptionDetailRepository shopSubscriptionDetailRepository;
-    private final SubscriptionAccessService subscriptionAccessService;
+    private final LicensingFeignClient licensing;
     private final InstitutionMapper institutionMapper;
     private final AccessCatalogService accessCatalogService;
 
@@ -255,13 +255,12 @@ public class InstitutionServiceImpl implements InstitutionService {
     }
 
     @Override
-    @Transactional
     public void handleSubscription(PaymentDetail event) {
-//        if (!Boolean.TRUE.equals(event.freeTrial())) {
-//            throw new BadRequestException(
-//                    "Paid subscriptions are handled by the finance service; use free trial here");
-//        }
-        subscriptionAccessService.startTrial(event.referenceId(), event.subscriptionId());
+        if (!Boolean.TRUE.equals(event.freeTrial())) {
+            throw new com.itibari.auth.exception.BadRequestException(
+                    "Paid subscriptions require payment verification through licensing");
+        }
+        licensing.startTrial(event.subscriptionId());
     }
 
     private void applyUpdates(Institution institution, UpdateShopDTO dto) {
