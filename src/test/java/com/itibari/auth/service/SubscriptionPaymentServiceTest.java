@@ -11,6 +11,8 @@ import com.itibari.auth.repository.AuthUserRepository;
 import com.itibari.auth.repository.SubscriptionPaymentRepository;
 import com.itibari.auth.repository.SubscriptionRepository;
 import com.itibari.auth.service.impl.SubscriptionPaymentServiceImpl;
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
@@ -68,6 +70,15 @@ class SubscriptionPaymentServiceTest {
             return saved;
         });
         when(sdk.c2bPayment(any())).thenReturn(result("INS-0", "tx-123", null));
+    }
+
+    @Test
+    void paymentPhoneMustStayTanzaniaMobilePattern() {
+        Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
+        assertThat(validator.validate(new SubscriptionPaymentRequest(planId, UUID.randomUUID(), "+254712345678")))
+                .isNotEmpty();
+        assertThat(validator.validate(new SubscriptionPaymentRequest(planId, UUID.randomUUID(), "255712345678")))
+                .isEmpty();
     }
 
     @Test
