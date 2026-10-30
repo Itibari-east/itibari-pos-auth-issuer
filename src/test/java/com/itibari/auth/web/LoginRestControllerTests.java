@@ -61,6 +61,23 @@ class LoginRestControllerTests extends AuthIssuerApplicationTests {
     }
 
     @Test
+    void loginWithLastNinePhoneDigitsSucceeds() {
+        String phone = "+255712345679";
+        String email = uniqueEmail("phone-last-nine");
+        AuthUser user = saveUser(email, "password123");
+        user.setPhoneNumber(phone);
+        authUserRepository.save(user);
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(new LoginRequest("712345679", "password123"))
+                .post("/login")
+                .then()
+                .statusCode(200)
+                .body("accessToken", not(blankOrNullString()));
+    }
+
+    @Test
     void loginShouldReturnAccessToken() {
         String email = uniqueEmail("login");
         saveUser(email, "password123");
@@ -93,20 +110,7 @@ class LoginRestControllerTests extends AuthIssuerApplicationTests {
     void googleLoginShouldCreateUserAndReturnToken() {
         String subject = "google-sub-" + System.nanoTime();
         String email = uniqueEmail("google");
-
-        when(googleIdTokenDecoder.decode(anyString())).thenReturn(Jwt.withTokenValue("google-id-token")
-                .header("alg", "RS256")
-                .subject(subject)
-                .claims(claims -> {
-                    claims.put("email", email);
-                    claims.put("email_verified", true);
-                    claims.put("given_name", "Google");
-                    claims.put("family_name", "User");
-                    claims.put("aud", List.of("test-google-client"));
-                })
-                .issuedAt(Instant.now())
-                .expiresAt(Instant.now().plusSeconds(3600))
-                .build());
+        mockGoogleIdToken(subject, email);
 
         given()
                 .contentType(ContentType.JSON)
@@ -127,6 +131,31 @@ class LoginRestControllerTests extends AuthIssuerApplicationTests {
                 authUserRepository.findByGoogleSubjectAndDeletedFalse(subject).isPresent());
         org.junit.jupiter.api.Assertions.assertEquals(1,
                 authUserRepository.findByEmailIgnoreCaseAndDeletedFalse(email).stream().count());
+    }
+
+    @Test
+    void googleLoginShouldLinkExistingDeletedUsername() {
+        String subject = "google-sub-" + System.nanoTime();
+        String email = uniqueEmail("google-link");
+        AuthUser existing = saveUser(email, "password123");
+        existing.setDeleted(true);
+        authUserRepository.save(existing);
+
+        mockGoogleIdToken(subject, email);
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(new GoogleLoginRequest("fake-google-id-token"))
+                .post("/login/google")
+                .then().log().all()
+                .statusCode(200)
+                .body("accessToken", not(blankOrNullString()));
+
+        AuthUser linked = authUserRepository.findByEmailIgnoreCase(email).orElseThrow();
+        assertFalse(linked.isDeleted());
+        org.junit.jupiter.api.Assertions.assertEquals(subject, linked.getGoogleSubject());
+        org.junit.jupiter.api.Assertions.assertEquals(1,
+                authUserRepository.findByEmailIgnoreCase(email).stream().count());
     }
 
     @Test
@@ -424,5 +453,21 @@ class LoginRestControllerTests extends AuthIssuerApplicationTests {
                 .statusCode(200)
                 .extract()
                 .path("resetToken");
+    }
+
+    private void mockGoogleIdToken(String subject, String email) {
+        when(googleIdTokenDecoder.decode(anyString())).thenReturn(Jwt.withTokenValue("google-id-token")
+                .header("alg", "RS256")
+                .subject(subject)
+                .claims(claims -> {
+                    claims.put("email", email);
+                    claims.put("email_verified", true);
+                    claims.put("given_name", "Google");
+                    claims.put("family_name", "User");
+                    claims.put("aud", List.of("test-google-client"));
+                })
+                .issuedAt(Instant.now())
+                .expiresAt(Instant.now().plusSeconds(3600))
+                .build());
     }
 }

@@ -71,16 +71,7 @@ public class AuthUserServiceImpl implements AuthUserService {
         }
         String email = dto.contactEmail().trim().toLowerCase();
         String phone = InternationalPhone.toE164(dto.contactPhoneNumber());
-
-        if (authUserRepository.findByEmailIgnoreCaseAndDeletedFalse(email).isPresent()) {
-            throw new BadRequestException("Email already taken");
-        }
-        if (authUserRepository.findByPhoneNumberAndDeletedFalse(phone).isPresent()) {
-            throw new BadRequestException("Phone number already taken");
-        }
-        if (authUserRepository.findByUsernameIgnoreCaseAndDeletedFalse(email).isPresent()) {
-            throw new BadRequestException("Username already taken");
-        }
+        rejectTakenIdentifiers(email, phone, null);
 
         AuthUser user = AuthUser.builder()
                 .username(email)
@@ -123,16 +114,7 @@ public class AuthUserServiceImpl implements AuthUserService {
         Institution parentTenant = parentTenantForChildUser(requestingUserId);
         String email = request.email().trim().toLowerCase(Locale.ROOT);
         String phone = InternationalPhone.toE164(request.phone());
-
-        if (authUserRepository.findByEmailIgnoreCaseAndDeletedFalse(email).isPresent()) {
-            throw new BadRequestException("Email already taken");
-        }
-        if (authUserRepository.findByPhoneNumberAndDeletedFalse(phone).isPresent()) {
-            throw new BadRequestException("Phone number already taken");
-        }
-        if (authUserRepository.findByUsernameIgnoreCaseAndDeletedFalse(email).isPresent()) {
-            throw new BadRequestException("Username already taken");
-        }
+        rejectTakenIdentifiers(email, phone, null);
 
         Set<Role> roles = getTenantRoles(request.role(), parentTenant);
         Set<Institution> branches = getTenantBranches(request.branch(), parentTenant);
@@ -222,16 +204,7 @@ public class AuthUserServiceImpl implements AuthUserService {
         String email = request.email().trim().toLowerCase();
         String phone = InternationalPhone.toE164(request.phoneNumber());
 
-        authUserRepository.findByEmailIgnoreCaseAndDeletedFalse(email)
-                .filter(existing -> !existing.getId().equals(user.getId()))
-                .ifPresent(existing -> {
-                    throw new BadRequestException("Email already taken");
-                });
-        authUserRepository.findByPhoneNumberAndDeletedFalse(phone)
-                .filter(existing -> !existing.getId().equals(user.getId()))
-                .ifPresent(existing -> {
-                    throw new BadRequestException("Phone number already taken");
-                });
+        rejectTakenIdentifiers(email, phone, user.getId());
 
         user.setFirstName(request.firstName().trim());
         user.setLastName(request.lastName().trim());
@@ -395,6 +368,28 @@ public class AuthUserServiceImpl implements AuthUserService {
     @Transactional(readOnly = true)
     public UUID getParentTenantPublicId(UUID userPublicId) {
         return getParentTenantForUser(userPublicId).getPublicId();
+    }
+
+    private void rejectTakenIdentifiers(String email, String phone, Long excludeUserId) {
+        authUserRepository.findByEmailIgnoreCase(email)
+                .filter(existing -> !isSameUser(existing, excludeUserId))
+                .ifPresent(existing -> {
+                    throw new BadRequestException("Email already taken");
+                });
+        authUserRepository.findByPhoneNumber(phone)
+                .filter(existing -> !isSameUser(existing, excludeUserId))
+                .ifPresent(existing -> {
+                    throw new BadRequestException("Phone number already taken");
+                });
+        authUserRepository.findByUsernameIgnoreCase(email)
+                .filter(existing -> !isSameUser(existing, excludeUserId))
+                .ifPresent(existing -> {
+                    throw new BadRequestException("Username already taken");
+                });
+    }
+
+    private static boolean isSameUser(AuthUser existing, Long excludeUserId) {
+        return excludeUserId != null && excludeUserId.equals(existing.getId());
     }
 
     private Institution getParentTenantForUser(UUID userPublicId) {

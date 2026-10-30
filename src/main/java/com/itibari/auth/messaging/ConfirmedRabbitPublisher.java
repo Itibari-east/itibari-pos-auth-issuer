@@ -22,6 +22,12 @@ public class ConfirmedRabbitPublisher {
         rabbitTemplate.convertAndSend(exchange, routingKey, payload, message -> {
             message.getMessageProperties().setDeliveryMode(MessageDeliveryMode.PERSISTENT);
             message.getMessageProperties().setMessageId(eventId.toString());
+            // Notification-service only trusts its own messaging package. Override the
+            // producer's Map/Java type id so the listener can deserialize the JSON.
+            if (RabbitMessaging.RoutingKeys.SEND_NOTIFICATION.equals(routingKey)) {
+                message.getMessageProperties().setHeader("__TypeId__",
+                        "com.itibari.notification_service.messaging.NotificationSendMessage");
+            }
             return message;
         }, correlation);
         try {

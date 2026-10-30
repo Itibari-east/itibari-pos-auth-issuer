@@ -55,6 +55,43 @@ class UserRestControllerTests extends AuthIssuerApplicationTests {
                 .body("identity", equalToIgnoringCase("Ada Lovelace"));
     }
 
+    @Test
+    void createUserRejectsDuplicateEmail() {
+        String email = uniqueEmail("dup");
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(createUserBody(email, nextE164Phone()))
+                .post("/users")
+                .then()
+                .statusCode(200);
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(createUserBody(email, nextE164Phone()))
+                .post("/users")
+                .then().log().all()
+                .statusCode(400)
+                .body("detail", equalTo("Email already taken"));
+    }
+
+    @Test
+    void createUserRejectsUsernameOccupiedByDeletedUser() {
+        String email = uniqueEmail("username-dup");
+        AuthUser existing = saveUser(uniqueEmail("other-owner"), "password123");
+        existing.setUsername(email);
+        existing.setDeleted(true);
+        authUserRepository.save(existing);
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(createUserBody(email, nextE164Phone()))
+                .post("/users")
+                .then().log().all()
+                .statusCode(400)
+                .body("detail", equalTo("Username already taken"));
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"Short1!", "noupper1!", "NOLOWER1!", "NoNumber!", "NoSpecial1"})
     void createUserShouldRejectWeakPassword(String password) {
@@ -184,6 +221,78 @@ class UserRestControllerTests extends AuthIssuerApplicationTests {
                 .body("firstName", equalTo("Updated"))
                 .body("lastName", equalTo("Name"))
                 .body("email", equalToIgnoringCase(newEmail));
+    }
+
+    @Test
+    void updateUserAllowsKeepingOwnEmailAndPhone() {
+        String email = uniqueEmail("keep-own");
+        AuthUser user = saveUser(email, "password123");
+        String token = login(email, "password123");
+
+        given()
+                .auth().oauth2(token)
+                .contentType(ContentType.JSON)
+                .body(new AuthUserRequest("Renamed", "User", user.getPhoneNumber(), email))
+                .patch("/users/{publicId}", user.getPublicId())
+                .then().log().all()
+                .statusCode(200)
+                .body("firstName", equalTo("Renamed"))
+                .body("email", equalToIgnoringCase(email))
+                .body("phoneNumber", equalTo(user.getPhoneNumber()));
+    }
+
+    @Test
+    void updateUserRejectsEmailTakenByAnotherUser() {
+        AuthUser other = saveUser(uniqueEmail("other-email"), "password123");
+        String email = uniqueEmail("update-email");
+        AuthUser user = saveUser(email, "password123");
+        String token = login(email, "password123");
+
+        given()
+                .auth().oauth2(token)
+                .contentType(ContentType.JSON)
+                .body(new AuthUserRequest("Updated", "Name", user.getPhoneNumber(), other.getEmail()))
+                .patch("/users/{publicId}", user.getPublicId())
+                .then().log().all()
+                .statusCode(400)
+                .body("detail", equalTo("Email already taken"));
+    }
+
+    @Test
+    void updateUserRejectsPhoneTakenByAnotherUser() {
+        AuthUser other = saveUser(uniqueEmail("other-phone"), "password123");
+        String email = uniqueEmail("update-phone");
+        AuthUser user = saveUser(email, "password123");
+        String token = login(email, "password123");
+
+        given()
+                .auth().oauth2(token)
+                .contentType(ContentType.JSON)
+                .body(new AuthUserRequest("Updated", "Name", other.getPhoneNumber(), email))
+                .patch("/users/{publicId}", user.getPublicId())
+                .then().log().all()
+                .statusCode(400)
+                .body("detail", equalTo("Phone number already taken"));
+    }
+
+    @Test
+    void updateUserRejectsEmailOccupiedByDeletedUser() {
+        AuthUser deleted = saveUser(uniqueEmail("deleted-email"), "password123");
+        deleted.setDeleted(true);
+        authUserRepository.save(deleted);
+
+        String email = uniqueEmail("update-deleted");
+        AuthUser user = saveUser(email, "password123");
+        String token = login(email, "password123");
+
+        given()
+                .auth().oauth2(token)
+                .contentType(ContentType.JSON)
+                .body(new AuthUserRequest("Updated", "Name", user.getPhoneNumber(), deleted.getEmail()))
+                .patch("/users/{publicId}", user.getPublicId())
+                .then().log().all()
+                .statusCode(400)
+                .body("detail", equalTo("Email already taken"));
     }
 
     @Test
@@ -491,5 +600,16 @@ class UserRestControllerTests extends AuthIssuerApplicationTests {
                 "branch", List.of(branchId),
                 "phone", phone,
                 "email", email);
+    }
+
+    private CreateUserDTO createUserBody(String email, String phone) {
+        return CreateUserDTO.builder()
+                .firstName("Ada")
+                .lastName("Lovelace")
+                .contactEmail(email)
+                .contactPhoneNumber(phone)
+                .password("Password1!")
+                .confirmPassword("Password1!")
+                .build();
     }
 }

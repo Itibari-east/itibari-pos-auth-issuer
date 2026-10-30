@@ -1,5 +1,6 @@
 package com.itibari.auth.exception;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.security.access.AccessDeniedException;
@@ -35,6 +36,20 @@ public class ApiExceptionHandler {
     @ExceptionHandler(ConflictException.class)
     public ProblemDetail conflict(ConflictException ex) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ProblemDetail duplicate(DataIntegrityViolationException ex) {
+        String cause = ex.getMostSpecificCause() == null ? "" : ex.getMostSpecificCause().getMessage();
+        String detail = "A record with these details already exists";
+        if (cause.contains("auth_users_username_key") || cause.contains("(username)=")) {
+            detail = "Username already taken";
+        } else if (cause.contains("auth_users_email") || cause.contains("(email)=")) {
+            detail = "Email already taken";
+        } else if (cause.contains("phone_number") || cause.contains("(phone_number)=")) {
+            detail = "Phone number already taken";
+        }
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, detail);
     }
 
     @ExceptionHandler({BadRequestException.class, MethodArgumentNotValidException.class})

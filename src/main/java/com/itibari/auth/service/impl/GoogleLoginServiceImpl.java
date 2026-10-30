@@ -29,9 +29,11 @@ public class GoogleLoginServiceImpl implements GoogleLoginService {
             throw new BadCredentialsException("Google email is not verified");
         }
 
-        return authUserRepository.findByGoogleSubjectAndDeletedFalse(subject)
-                .map(user -> updateProfile(user, idToken, email))
-                .or(() -> authUserRepository.findByEmailIgnoreCaseAndDeletedFalse(email)
+        return authUserRepository.findByGoogleSubject(subject)
+                .map(user -> restoreAndUpdate(user, idToken, email))
+                .or(() -> authUserRepository.findByEmailIgnoreCase(email)
+                        .map(user -> linkGoogleSubject(user, idToken, subject, email)))
+                .or(() -> authUserRepository.findByUsernameIgnoreCase(email)
                         .map(user -> linkGoogleSubject(user, idToken, subject, email)))
                 .orElseGet(() -> authUserRepository.save(AuthUser.builder()
                         .username("google-" + subject)
@@ -53,6 +55,15 @@ public class GoogleLoginServiceImpl implements GoogleLoginService {
             throw new BadCredentialsException("Email is already linked to another Google account");
         }
         user.setGoogleSubject(subject);
+        return restoreAndUpdate(user, idToken, email);
+    }
+
+    private AuthUser restoreAndUpdate(AuthUser user, Jwt idToken, String email) {
+        if (user.isDeleted()) {
+            user.setDeleted(false);
+            user.setEnabled(true);
+            user.setActiveStatus(true);
+        }
         return updateProfile(user, idToken, email);
     }
 
