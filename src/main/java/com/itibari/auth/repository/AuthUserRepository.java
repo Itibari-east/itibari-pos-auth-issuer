@@ -24,11 +24,21 @@ public interface AuthUserRepository extends JpaRepository<AuthUser, Long> {
 
     Optional<AuthUser> findByEmailIgnoreCaseAndDeletedFalse(String email);
 
+    Optional<AuthUser> findByEmailIgnoreCase(String email);
+
     Optional<AuthUser> findByUsernameIgnoreCaseAndDeletedFalse(String username);
+
+    Optional<AuthUser> findByUsernameIgnoreCase(String username);
 
     Optional<AuthUser> findByPhoneNumberAndDeletedFalse(String phoneNumber);
 
+    Optional<AuthUser> findByPhoneNumber(String phoneNumber);
+
+    Optional<AuthUser> findFirstByPhoneNumberEndingWithAndDeletedFalse(String lastNineDigits);
+
     Optional<AuthUser> findByGoogleSubjectAndDeletedFalse(String googleSubject);
+
+    Optional<AuthUser> findByGoogleSubject(String googleSubject);
 
     Optional<AuthUser> findByResetPasswordTokenLookupHashAndDeletedFalse(String resetPasswordTokenLookupHash);
 

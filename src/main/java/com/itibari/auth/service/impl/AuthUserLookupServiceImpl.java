@@ -23,16 +23,22 @@ public class AuthUserLookupServiceImpl implements AuthUserLookupService {
             return Optional.empty();
         }
         String trimmed = identifier.trim();
-        String normalizedPhone;
         if (FormatPhone.looksLikeEmail(trimmed)) {
-            normalizedPhone = trimmed;
-        } else {
-            try {
-                normalizedPhone = InternationalPhone.toE164(trimmed);
-            } catch (BadRequestException ex) {
-                return Optional.empty();
-            }
+            return authUserRepository.findByIdentifier(trimmed, trimmed);
         }
-        return authUserRepository.findByIdentifier(trimmed, normalizedPhone);
+        Optional<AuthUser> match;
+        try {
+            match = authUserRepository.findByIdentifier(trimmed, InternationalPhone.toE164(trimmed));
+        } catch (BadRequestException ex) {
+            match = Optional.empty();
+        }
+        if (match.isPresent()) {
+            return match;
+        }
+        String lastNine = FormatPhone.lastNineDigits(trimmed);
+        if (lastNine == null || lastNine.length() < 9) {
+            return Optional.empty();
+        }
+        return authUserRepository.findFirstByPhoneNumberEndingWithAndDeletedFalse(lastNine);
     }
 }
